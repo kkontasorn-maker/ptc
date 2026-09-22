@@ -8,6 +8,7 @@ This is a set of **interactive, static UX prototypes**, not a connected booking 
 | --- | --- |
 | `nis-ptc-admin.html` | IT Admin Events list and Create/Edit Event flow |
 | `nis-ptc-events.css` | Events-page attention hierarchy and status styling |
+| `nis-ptc-schedule.html` | Read-only all-teacher schedule overview with service filters |
 | `nis-ptc-teacher.html` | Teacher's single-day FullCalendar agenda, booking moves, breaks, cutoff preview |
 | `nis-ptc-parent.html` | Mobile-first parent booking, confirmation, and manage-booking flows |
 | `nis-ptc-brand-system.html` | NIS palette, typography, spacing, contrast notes, and confirmation-screen sample |
@@ -33,6 +34,10 @@ The Events list includes status filtering and seeded past/upcoming conferences. 
 ### Teacher
 
 The teacher page shows a fixed sample event on **16 October 2026**, from **08:00–15:30 ICT**, with a **14 October 2026 at 17:00 ICT** cutoff. It uses FullCalendar `timeGridDay` v7.1.0 from jsDelivr, so the prototype needs an internet connection. Dragging a booking proposes a move, reverts the provisional drop, and asks for confirmation before saving. Drag-selecting empty time proposes a break. On narrow screens, tapping opens move/cancel or block-time controls. Conflicting or out-of-window times are rejected. The “Preview cutoff passed” checkbox shows the read-only state. Changes persist in `localStorage` under `nis-ptc-teacher-agenda-v1`.
+
+### Schedule overview
+
+The admin schedule overview is a read-only teacher-column/time-row grid. Elementary shows five teachers at 15-minute intervals; Middle & High School shows four teachers at 10-minute intervals. The chip filter switches the dataset and time scale. Booked cells use a contained light-gray card, breaks add a diagonal hatch and dashed outline, and open slots remain empty. The screen is intentionally grayscale with no red attention treatment.
 
 ### Parent
 
