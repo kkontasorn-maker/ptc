@@ -1,21 +1,21 @@
 /* Events page attention hierarchy. Tints are the supplied NIS reds/gray over white. */
 body.nis-admin .nav{background:transparent;color:#64676A;border-left:3px solid transparent}
-body.nis-admin .nav.active{background:rgba(140,14,6,.08);color:#8C0E06;border-left:3px solid #8C0E06}
+body.nis-admin .nav.active{background:var(--nis-red-tint);color:#8C0E06;border-left:3px solid #8C0E06}
 body.nis-admin .nav.active .nav-icon{color:#8C0E06}
 body.nis-admin #listView #newEvent{background:#8C0E06;border:0.5px solid #8C0E06;color:#FFFFFF;box-shadow:none}
 body.nis-admin #listView #newEvent:hover{background:#8C0E06;filter:brightness(.94)}
 body.nis-admin .metric{border:0.5px solid #BCBCBC;background:#FFFFFF;box-shadow:none}
 body.nis-admin .metric .label{display:flex;align-items:center;gap:9px;color:#64676A}
 body.nis-admin .metric-icon{width:26px;height:26px;border-radius:7px;display:inline-grid;place-items:center;flex:none;background:rgba(188,188,188,.22);color:#64676A;font-size:15px;line-height:1}
-body.nis-admin .metric-icon.upcoming{background:rgba(140,14,6,.09);color:#8C0E06}
+body.nis-admin .metric-icon.upcoming{background:var(--nis-red-tint);color:var(--nis-red-tint-text)}
 body.nis-admin .date-tile{background:rgba(188,188,188,.20);border-radius:9px;padding:6px;color:#64676A}
 body.nis-admin .date-tile small{color:#64676A}
-body.nis-admin .date-tile strong{color:#8C0E06}
-body.nis-admin .pill.scheduled{background:rgba(140,14,6,.09);color:#8C0E06}
+body.nis-admin .date-tile strong{color:var(--nis-ink)}
+body.nis-admin .pill.scheduled{background:var(--nis-red-tint);color:var(--nis-red-tint-text)}
 body.nis-admin .pill.draft,body.nis-admin .pill.past{background:rgba(188,188,188,.20);color:#64676A}
 body.nis-admin .event-action{background:#FFFFFF;border:0.5px solid #64676A;color:#64676A;box-shadow:none}
-body.nis-admin .event-action.primary{background:#8C0E06;border-color:#8C0E06;color:#FFFFFF}
-body.nis-admin .event-action.primary:hover{background:#8C0E06;filter:brightness(.94)}
+body.nis-admin .event-action.primary{background:#FFFFFF;border-color:#64676A;color:#64676A}
+body.nis-admin .event-action.primary:hover{background:var(--nis-soft);filter:none}
 body.nis-admin .event-create-form{max-width:760px;padding:30px;margin:0}
 body.nis-admin .event-create-form .split{align-items:start}
 body.nis-admin .booking-toggle{display:flex;align-items:center;justify-content:space-between;gap:24px;cursor:pointer;padding:2px 0 6px}
@@ -39,7 +39,7 @@ body.nis-admin .bookings-table .student-cell{font-weight:600}
 body.nis-admin .bookings-table .is-cancelled .student-cell{text-decoration:line-through;color:#64676A}
 body.nis-admin .booking-status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:600;white-space:nowrap}
 body.nis-admin .booking-status.confirmed{background:rgba(188,188,188,.24);color:#64676A}
-body.nis-admin .booking-status.cancelled{background:rgba(140,14,6,.09);color:#8C0E06}
+body.nis-admin .booking-status.cancelled{background:var(--nis-red-tint);color:var(--nis-red-tint-text)}
 body.nis-admin .teacher-profile{display:flex;align-items:center;gap:16px;margin-bottom:27px}
 body.nis-admin .teacher-profile h1{font-size:28px}
 body.nis-admin .teacher-profile p{margin:5px 0 0;color:#64676A;font-size:13px}

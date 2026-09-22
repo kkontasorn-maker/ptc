@@ -13,6 +13,7 @@ This is a set of **interactive, static UX prototypes**, not a connected booking 
 | `nis-ptc-teacher.html` | Teacher's single-day FullCalendar agenda, booking moves, breaks, cutoff preview |
 | `nis-ptc-parent.html` | Mobile-first parent booking, confirmation, and manage-booking flows |
 | `nis-ptc-brand-system.html` | NIS palette, typography, spacing, contrast notes, and confirmation-screen sample |
+| `ptc-design-system.md` | Canonical visual rules and semantic color/component guidance |
 | `nis-ptc-baseline.css` | Shared calm visual baseline across the three role prototypes |
 | `assets/nis-primary-horizontal.png` | Supplied NIS primary full-color logo used in the UI |
 | `assets/nis-secondary-horizontal.png` | Supplied NIS secondary horizontal logo for future layouts |
@@ -21,9 +22,9 @@ This is a set of **interactive, static UX prototypes**, not a connected booking 
 
 - Use a light neutral page background, white cards, 0.5px neutral borders, dark neutral text, and restrained dark red (`#8C0E06`) for primary actions and small brand accents.
 - The parent confirmation is the reference: small full-color logo, 40px soft green success badge, dark heading, regular-weight data values, one dark red primary button, neutral secondary button.
-- The Events page deliberately highlights the active Events nav item and the upcoming event. Its **Create event** button remains dark red by request. Past and draft rows use neutral pills and outline actions.
+- The Events page deliberately highlights the active Events nav item and the upcoming status pill. Its **Create event** button is the sole red action; event row actions remain neutral outlines.
 - Teacher bookings are white blocks with solid gray outlines; blocked time has a light gray fill and dashed outline. The cutoff state uses a lock icon, explanatory text, and disabled interactions.
-- NIS supplied palette: dark red `#8C0E06`, bright red `#E62125`, light gray `#BCBCBC`, blue `#225085`, dark gray `#64676A`, white `#FFFFFF`. Confirmation success additionally uses soft green `#E7F3EA` and check green `#1F6B3A`; its heading uses `#252525`.
+- NIS supplied palette: dark red `#8C0E06`, primary tint `#FCEBEB` with text `#791F1F`, bright red `#E62125`, light gray `#BCBCBC`, blue `#225085`, dark gray `#64676A`, and white `#FFFFFF`. Confirmation success uses `#EAF3DE` with `#3B6D11`; primary headings use `#252525`.
 - Typography uses Arial/system sans. The spacing scale is 4, 8, 12, 16, 24, and 32px. Interactive controls aim for at least 44px height.
 
 ## Prototype behavior

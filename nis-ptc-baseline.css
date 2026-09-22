@@ -1,6 +1,6 @@
-:root{--nis-red:#8C0E06;--nis-bright:#E62125;--nis-blue:#225085;--nis-gray:#BCBCBC;--nis-text:#64676A;--nis-white:#FFFFFF;--nis-surface:rgba(188,188,188,.13);--nis-soft:rgba(188,188,188,.20)}
+:root{--nis-red:#8C0E06;--nis-red-tint:#FCEBEB;--nis-red-tint-text:#791F1F;--nis-success-bg:#EAF3DE;--nis-success-text:#3B6D11;--nis-bright:#E62125;--nis-blue:#225085;--nis-gray:#BCBCBC;--nis-text:#64676A;--nis-ink:#252525;--nis-white:#FFFFFF;--nis-surface:#F5F5F4;--nis-soft:#ECECEB}
 body.nis-admin,body.nis-teacher,body.nis-parent{font-family:Arial,Helvetica,sans-serif;background:var(--nis-surface);color:var(--nis-text)}
-body.nis-admin h1,body.nis-admin h2,body.nis-teacher h1,body.nis-teacher h2,body.nis-parent h1,body.nis-parent h2{color:var(--nis-text);letter-spacing:-.025em}
+body.nis-admin h1,body.nis-admin h2,body.nis-teacher h1,body.nis-teacher h2,body.nis-parent h1,body.nis-parent h2{color:var(--nis-ink);letter-spacing:-.025em}
 body.nis-admin h1,body.nis-teacher h1,body.nis-parent h1{font-weight:600}
 body.nis-admin h2,body.nis-teacher h2,body.nis-parent h2{font-weight:600}
 body.nis-admin .panel,body.nis-admin .metric,body.nis-teacher .card,body.nis-parent .panel{background:var(--nis-white);border:0.5px solid var(--nis-gray);border-radius:13px;box-shadow:none}
@@ -16,7 +16,7 @@ body.nis-admin .sidebar .brand{padding:0 9px 28px}
 body.nis-admin .side-label,body.nis-admin .sidebar-bottom{color:var(--nis-text)}
 body.nis-admin .sidebar-bottom{border-top:0.5px solid var(--nis-gray)}
 body.nis-admin .nav{color:var(--nis-text)}
-body.nis-admin .nav.active{background:var(--nis-soft);color:var(--nis-text);border-left:3px solid var(--nis-red)}
+body.nis-admin .nav.active{background:var(--nis-red-tint);color:var(--nis-red);border-left:3px solid var(--nis-red)}
 body.nis-admin .avatar,body.nis-teacher .avatar{background:var(--nis-soft);color:var(--nis-text)}
 body.nis-admin .metric .value,body.nis-admin .event-title,body.nis-admin .summary-row b{color:var(--nis-text)}
 body.nis-admin .metric .hint,body.nis-admin .metric .label,body.nis-admin .event-meta,body.nis-admin .field .help{color:var(--nis-text)}
@@ -48,7 +48,7 @@ body.nis-teacher .modal,body.nis-teacher .sheet{background:var(--nis-white);colo
 body.nis-parent .brand{color:var(--nis-text)}
 body.nis-parent .top-link{color:var(--nis-text);text-decoration:underline}
 body.nis-parent .progress span{background:var(--nis-soft)}
-body.nis-parent .progress span.on{background:var(--nis-red)}
+body.nis-parent .progress span.on{background:var(--nis-text)}
 body.nis-parent .choice,body.nis-parent .teacher,body.nis-parent .slot{background:var(--nis-white);color:var(--nis-text);border:0.5px solid var(--nis-gray);box-shadow:none}
 body.nis-parent .choice:hover,body.nis-parent .choice.selected,body.nis-parent .teacher.selected,body.nis-parent .slot.selected{background:var(--nis-soft);color:var(--nis-text);border:1px solid var(--nis-text);box-shadow:none}
 body.nis-parent .slot:disabled{background:rgba(188,188,188,.16);border-color:rgba(188,188,188,.65);color:#8A8C8E;opacity:1;text-decoration:line-through;box-shadow:none;cursor:not-allowed}
@@ -60,7 +60,7 @@ body.nis-parent .legend-swatch.booked::after{content:"";position:absolute;left:3
 body.nis-parent .auth .btn.selected{background:var(--nis-soft);border:1px solid var(--nis-text)}
 body.nis-parent .booking-card,body.nis-parent .email-preview{background:var(--nis-white);border:0.5px solid var(--nis-gray)}
 body.nis-parent .booking-card b,body.nis-parent .summary b{color:var(--nis-text);font-weight:600}
-body.nis-parent .success{background:#E7F3EA;color:#1F6B3A;width:40px;height:40px;font-size:21px;font-weight:400}
+body.nis-parent .success{background:var(--nis-success-bg);color:var(--nis-success-text);width:40px;height:40px;font-size:21px;font-weight:400}
 body.nis-parent .error{color:var(--nis-text)}
 body.nis-parent .confirm-card{max-width:550px;margin:auto;padding:26px}
 body.nis-parent .confirm-logo{width:170px;height:auto;display:block;margin:0 0 23px}
