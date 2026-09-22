@@ -51,7 +51,12 @@ body.nis-parent .progress span{background:var(--nis-soft)}
 body.nis-parent .progress span.on{background:var(--nis-red)}
 body.nis-parent .choice,body.nis-parent .teacher,body.nis-parent .slot{background:var(--nis-white);color:var(--nis-text);border:0.5px solid var(--nis-gray);box-shadow:none}
 body.nis-parent .choice:hover,body.nis-parent .choice.selected,body.nis-parent .teacher.selected,body.nis-parent .slot.selected{background:var(--nis-soft);color:var(--nis-text);border:1px solid var(--nis-text);box-shadow:none}
-body.nis-parent .slot:disabled{background:var(--nis-soft);color:var(--nis-text);opacity:.55}
+body.nis-parent .slot:disabled{background:rgba(188,188,188,.16);border-color:rgba(188,188,188,.65);color:#8A8C8E;opacity:1;text-decoration:line-through;box-shadow:none;cursor:not-allowed}
+body.nis-parent .slot-legend{display:flex;align-items:center;gap:20px;margin-top:13px;color:var(--nis-text);font-size:11px}
+body.nis-parent .slot-legend span{display:inline-flex;align-items:center;gap:7px}
+body.nis-parent .legend-swatch{display:inline-block;width:18px;height:13px;border-radius:4px;border:0.5px solid var(--nis-gray);background:var(--nis-white)}
+body.nis-parent .legend-swatch.booked{background:rgba(188,188,188,.16);position:relative}
+body.nis-parent .legend-swatch.booked::after{content:"";position:absolute;left:3px;right:3px;top:6px;border-top:1px solid #8A8C8E}
 body.nis-parent .auth .btn.selected{background:var(--nis-soft);border:1px solid var(--nis-text)}
 body.nis-parent .booking-card,body.nis-parent .email-preview{background:var(--nis-white);border:0.5px solid var(--nis-gray)}
 body.nis-parent .booking-card b,body.nis-parent .summary b{color:var(--nis-text);font-weight:600}
