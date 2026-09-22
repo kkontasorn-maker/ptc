@@ -33,7 +33,7 @@ The Events list includes status filtering and seeded past/upcoming conferences. 
 
 ### Teacher
 
-The teacher page shows a fixed sample event on **16 October 2026**, from **08:00–15:30 ICT**, with a **14 October 2026 at 17:00 ICT** cutoff. It uses FullCalendar `timeGridDay` v7.1.0 from jsDelivr, so the prototype needs an internet connection. Dragging a booking proposes a move, reverts the provisional drop, and asks for confirmation before saving. Drag-selecting empty time proposes a break. On narrow screens, tapping opens move/cancel or block-time controls. Conflicting or out-of-window times are rejected. The “Preview cutoff passed” checkbox shows the read-only state. Changes persist in `localStorage` under `nis-ptc-teacher-agenda-v1`.
+The teacher page shows a fixed sample event on **16 October 2026**, from **08:00–15:30 ICT**, with a **14 October 2026 at 17:00 ICT** cutoff. It is a single-column vertical agenda with one row per 10-minute slot. Bookings use a dark-red left accent and drag handle; breaks use a hatched background and dashed border; open rows use a dashed outline. Dragging a booking onto an open row opens a confirmation step before saving. On narrow screens, tapping a booking opens a time picker and then the same confirmation step. The secondary “Block time” button adds a checked break range. Conflicting or out-of-window times are rejected. The “Preview cutoff passed” checkbox shows the read-only state. Changes persist in `localStorage` under `nis-ptc-teacher-list-v1`.
 
 ### Schedule overview
 
@@ -54,4 +54,4 @@ The parent flow covers grade/section, teacher/time, simulated Google/Facebook/gu
 
 ## Review notes
 
-The HTML files can be opened directly. To serve them locally, run `python3 -m http.server 8000` in this directory and open `http://localhost:8000/nis-ptc-admin.html`. The teacher calendar loads FullCalendar assets from a CDN. The prototypes were visually checked in a browser at desktop size, and a sample parent booking was completed through confirmation and then removed. JavaScript syntax was checked for each page. A production implementation still needs responsive and accessibility testing with real data and assistive technology.
+The HTML files can be opened directly. To serve them locally, run `python3 -m http.server 8000` in this directory and open `http://localhost:8000/nis-ptc-admin.html`. The prototypes were visually checked in a browser at desktop size, and a sample parent booking was completed through confirmation and then removed. JavaScript syntax was checked for each page. A production implementation still needs responsive and accessibility testing with real data and assistive technology.
