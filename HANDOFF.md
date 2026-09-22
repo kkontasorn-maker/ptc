@@ -34,7 +34,7 @@ This is a set of **interactive, static UX prototypes**, not a connected booking 
 
 ### Admin
 
-The Events list includes status filtering and seeded past/upcoming conferences. Create/Edit captures event name, single conference date, and an optional change cutoff in Chiang Mai time (ICT). New events save as drafts in browser `localStorage` under `nis-ptc-events-v1`. The post-save screen identifies Services, Teachers, and Booking fields as next setup steps; those editors are not implemented yet.
+The Events list includes status filtering and seeded past/upcoming conferences. Create/Edit captures the event name, conference date, change cutoff date and time in Chiang Mai time (ICT), and whether the event is open for parent booking. The two save paths create either a private draft or an event using the selected booking visibility. Events persist in browser `localStorage` under `nis-ptc-events-v1`. Services, Teachers, and Booking fields remain future setup steps; those editors are not implemented yet.
 
 ### Teacher
 
