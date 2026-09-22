@@ -6,6 +6,7 @@ This is a set of **interactive, static UX prototypes**, not a connected booking 
 
 | File | Purpose |
 | --- | --- |
+| `index.html` | Public landing page routing parents and teachers/staff |
 | `nis-ptc-admin.html` | IT Admin Events list and Create/Edit Event flow |
 | `nis-ptc-events.css` | Events-page attention hierarchy and status styling |
 | `nis-ptc-schedule.html` | Read-only all-teacher schedule overview with service filters |
@@ -26,6 +27,10 @@ This is a set of **interactive, static UX prototypes**, not a connected booking 
 - Typography uses Arial/system sans. The spacing scale is 4, 8, 12, 16, 24, and 32px. Interactive controls aim for at least 44px height.
 
 ## Prototype behavior
+
+### Landing page
+
+`index.html` is the frontend entry point. It presents two equal role tiles: Parents routes to the booking flow and Teachers & Staff routes to the teacher agenda. A small text link beneath the tiles opens the admin prototype. The parents icon uses the dark-red brand accent; the staff icon remains neutral gray.
 
 ### Admin
 
