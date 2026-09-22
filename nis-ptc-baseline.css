@@ -68,4 +68,12 @@ body.nis-parent .confirm-card .actions{display:grid;grid-template-columns:1fr;ju
 body.nis-parent .confirm-card .actions .btn{width:100%;margin:0}
 body.nis-parent .confirm-card .email-preview{margin-top:19px}
 body.nis-parent.confirmation-mode .top{display:none}
+body.nis-parent .booking-form{max-width:590px;margin:0 auto}
+body.nis-parent .booking-selection{border-bottom:0.5px solid var(--nis-gray);padding:0 0 18px;margin:0 0 20px}
+body.nis-parent .booking-selection span{display:block;color:var(--nis-text);font-size:11px;margin-bottom:5px}
+body.nis-parent .booking-selection b{display:block;color:#252525;font-size:15px;font-weight:600}
+body.nis-parent .booking-selection small{display:block;color:var(--nis-text);font-size:11px;margin-top:5px}
+body.nis-parent .booking-form .field{margin-bottom:17px}
+body.nis-parent .booking-form .field label{color:#252525;font-weight:600}
+body.nis-parent .continue-button{display:block;width:100%;margin-top:23px}
 @media(max-width:600px){body.nis-admin .app-logo,body.nis-teacher .app-logo,body.nis-parent .app-logo{width:145px}body.nis-admin .sidebar .brand{padding:0}body.nis-parent .confirm-card{padding:21px}body.nis-parent .confirm-logo{width:155px}}

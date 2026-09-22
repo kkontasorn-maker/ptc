@@ -46,7 +46,7 @@ The admin schedule overview is a read-only teacher-column/time-row grid. Element
 
 ### Parent
 
-The parent flow covers grade/section, teacher/time, simulated Google/Facebook/guest choices, booking details, confirmation, and email-based manage-booking. Guest collects email and first/last name. Confirmation collects student full name, nickname, grade, and relationship (including free-text Other). The confirmation email is a **preview only**; no email is sent. Manage-booking supports reschedule and cancel before the sample cutoff, then presents a friendly read-only message. Bookings persist in `localStorage` under `nis-ptc-parent-bookings-v1`.
+The parent flow covers grade/section, teacher/time, a streamlined booking form, confirmation, and email-based manage-booking. Immediately after slot selection, the form collects Student name, Nickname, Grade level, Relationship to student (including free-text Other), and Email, followed by one full-width Continue button. The confirmation email is a **preview only**; no email is sent. Manage-booking supports reschedule and cancel before the sample cutoff, then presents a friendly read-only message. Bookings persist in `localStorage` under `nis-ptc-parent-bookings-v1`.
 
 ## Important implementation gaps
 
