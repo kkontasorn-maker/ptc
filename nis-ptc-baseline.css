@@ -76,4 +76,17 @@ body.nis-parent .booking-selection small{display:block;color:var(--nis-text);fon
 body.nis-parent .booking-form .field{margin-bottom:17px}
 body.nis-parent .booking-form .field label{color:#252525;font-weight:600}
 body.nis-parent .continue-button{display:block;width:100%;margin-top:23px}
-@media(max-width:600px){body.nis-admin .app-logo,body.nis-teacher .app-logo,body.nis-parent .app-logo{width:145px}body.nis-admin .sidebar .brand{padding:0}body.nis-parent .confirm-card{padding:21px}body.nis-parent .confirm-logo{width:155px}}
+body.nis-parent .code-card{max-width:500px;margin:48px auto;text-align:center;padding:34px 32px}
+body.nis-parent .mail-icon{width:48px;height:48px;border-radius:50%;background:var(--nis-soft);color:var(--nis-text);display:grid;place-items:center;margin:0 auto 17px}
+body.nis-parent .mail-icon svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+body.nis-parent .code-card h1{font-size:27px;font-weight:500;color:#252525;margin:0}
+body.nis-parent .code-card .sub{margin:8px 0 25px}
+body.nis-parent .code-card .sub strong{font-weight:600;color:#252525}
+body.nis-parent .code-boxes{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;max-width:365px;margin:0 auto}
+body.nis-parent .code-digit{width:100%;height:55px;border:1px solid var(--nis-gray);border-radius:8px;background:var(--nis-white);color:#252525;text-align:center;font-size:23px;font-weight:600;caret-color:var(--nis-red)}
+body.nis-parent .code-digit:focus{border-color:var(--nis-text);outline:2px solid var(--nis-text);outline-offset:1px}
+body.nis-parent .code-error{text-align:center;margin:12px 0 0}
+body.nis-parent .verify-button{display:block;width:100%;margin-top:23px}
+body.nis-parent .resend-link{display:block;border:0;background:transparent;color:var(--nis-red);font-size:12px;font-weight:600;text-decoration:underline;text-underline-offset:3px;margin:14px auto 0;padding:4px}
+body.nis-parent .resend-link:focus-visible{outline:2px solid var(--nis-text);outline-offset:2px}
+@media(max-width:600px){body.nis-admin .app-logo,body.nis-teacher .app-logo,body.nis-parent .app-logo{width:145px}body.nis-admin .sidebar .brand{padding:0}body.nis-parent .confirm-card{padding:21px}body.nis-parent .confirm-logo{width:155px}body.nis-parent .code-card{margin:18px auto;padding:28px 18px}body.nis-parent .code-boxes{gap:6px}body.nis-parent .code-digit{height:50px;font-size:21px}}
