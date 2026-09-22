@@ -34,9 +34,11 @@ This is a set of **interactive, static UX prototypes**, not a connected booking 
 
 ### Admin
 
-The Events list includes status filtering and seeded past/upcoming conferences. Create/Edit captures the event name, conference date, change cutoff date and time in Chiang Mai time (ICT), and whether the event is open for parent booking. The two save paths create either a private draft or an event using the selected booking visibility. Events persist in browser `localStorage` under `nis-ptc-events-v1`. Services, Teachers, and Booking fields remain future setup steps; those editors are not implemented yet.
+The Events list includes status filtering and seeded past/upcoming conferences. Create/Edit captures the event name, conference date, change cutoff date and time in Chiang Mai time (ICT), and whether the event is open for parent booking. The two save paths create either a private draft or an event using the selected booking visibility. Events persist in browser `localStorage` under `nis-ptc-events-v1`. Managing an event opens its Services list with service name, slot duration, assigned teacher count, neutral Manage controls, a primary Add service action, and a route back to event details. The individual service editor and Booking fields editor remain future steps.
 
 The Bookings navigation item opens a read-only table for the selected sample event with Student, Teacher, Time, and Status columns. Confirmed bookings use a neutral pill; cancelled bookings use a light red pill and strike through the student name. Export CSV downloads the displayed rows as `nis-ptc-bookings-2026-10-16.csv`.
+
+The Teachers navigation item opens a sample detail page for Ms. Maya Chen with identity details and Availability, Services, and Block Time tabs. Availability is the default and shows the assigned service, 10-minute slot duration, availability window pills, an Add window interaction, and a primary Save availability action. The other tabs provide lightweight contextual placeholders for the prototype.
 
 ### Teacher
 

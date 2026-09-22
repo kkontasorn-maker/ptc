@@ -40,4 +40,34 @@ body.nis-admin .bookings-table .is-cancelled .student-cell{text-decoration:line-
 body.nis-admin .booking-status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:600;white-space:nowrap}
 body.nis-admin .booking-status.confirmed{background:rgba(188,188,188,.24);color:#64676A}
 body.nis-admin .booking-status.cancelled{background:rgba(140,14,6,.09);color:#8C0E06}
-@media(max-width:600px){body.nis-admin .event-create-form{padding:21px}body.nis-admin .event-create-form .split{grid-template-columns:1fr}body.nis-admin .event-create-form .form-actions{display:grid;grid-template-columns:1fr 1fr}body.nis-admin .event-create-form .form-actions .btn{width:100%;padding-inline:8px}body.nis-admin #bookingsNav{display:flex}body.nis-admin #bookingsView .heading-row{align-items:flex-end}body.nis-admin .bookings-table th,body.nis-admin .bookings-table td{padding:14px 16px}}
+body.nis-admin .teacher-profile{display:flex;align-items:center;gap:16px;margin-bottom:27px}
+body.nis-admin .teacher-profile h1{font-size:28px}
+body.nis-admin .teacher-profile p{margin:5px 0 0;color:#64676A;font-size:13px}
+body.nis-admin .teacher-avatar{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:rgba(188,188,188,.24);color:#64676A;font-size:15px;font-weight:600;flex:none}
+body.nis-admin .detail-tabs{display:flex;gap:24px;border-bottom:0.5px solid #BCBCBC;margin-bottom:20px}
+body.nis-admin .detail-tab{border:0;border-bottom:2px solid transparent;background:transparent;color:#64676A;padding:10px 2px 12px;font-size:13px;font-weight:600}
+body.nis-admin .detail-tab.active{border-bottom-color:#8C0E06;color:#252525}
+body.nis-admin .teacher-detail-card{max-width:760px;padding:28px}
+body.nis-admin .service-assignment{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding-bottom:23px}
+body.nis-admin .service-assignment span{display:block;color:#64676A;font-size:11px;margin-bottom:6px}
+body.nis-admin .service-assignment strong{display:block;color:#252525;font-size:14px;font-weight:600}
+body.nis-admin .availability-heading h2{font-size:16px}
+body.nis-admin .availability-heading p{color:#64676A;font-size:12px;margin:5px 0 0}
+body.nis-admin .availability-windows{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-top:17px}
+body.nis-admin .window-pill{display:inline-flex;align-items:center;min-height:35px;padding:7px 12px;border:0.5px solid #BCBCBC;border-radius:999px;background:rgba(188,188,188,.16);color:#252525;font-size:12px;font-weight:600}
+body.nis-admin .add-window{min-height:35px;padding:7px 12px;border:1px dashed #64676A;border-radius:999px;background:#FFFFFF;color:#64676A;font-size:12px;font-weight:600}
+body.nis-admin .add-window:disabled{opacity:.6;cursor:default}
+body.nis-admin .teacher-save{display:flex;justify-content:flex-end;border-top:0.5px solid #BCBCBC;margin-top:26px;padding-top:21px}
+body.nis-admin .services-heading{align-items:flex-end;margin-bottom:17px}
+body.nis-admin .services-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}
+body.nis-admin .services-toolbar p{color:#64676A;font-size:12px;margin:0}
+body.nis-admin .service-list{display:grid;gap:12px}
+body.nis-admin .service-card{display:flex;align-items:center;justify-content:space-between;gap:22px;padding:22px 24px;background:#FFFFFF;border:0.5px solid #BCBCBC;border-radius:12px}
+body.nis-admin .service-card-main{min-width:0;flex:1}
+body.nis-admin .service-card h2{font-size:16px;color:#252525;margin-bottom:15px}
+body.nis-admin .service-meta{display:flex;gap:42px}
+body.nis-admin .service-meta span{display:block}
+body.nis-admin .service-meta small{display:block;color:#64676A;font-size:10px;margin-bottom:4px}
+body.nis-admin .service-meta strong{display:block;color:#252525;font-size:12px;font-weight:600}
+body.nis-admin .service-card>.btn{min-width:92px}
+@media(max-width:600px){body.nis-admin .event-create-form{padding:21px}body.nis-admin .event-create-form .split{grid-template-columns:1fr}body.nis-admin .event-create-form .form-actions{display:grid;grid-template-columns:1fr 1fr}body.nis-admin .event-create-form .form-actions .btn{width:100%;padding-inline:8px}body.nis-admin #bookingsNav{display:flex}body.nis-admin #bookingsView .heading-row{align-items:flex-end}body.nis-admin .bookings-table th,body.nis-admin .bookings-table td{padding:14px 16px}body.nis-admin .teacher-profile h1{font-size:23px}body.nis-admin .teacher-detail-card{padding:21px}body.nis-admin .detail-tabs{gap:15px;overflow-x:auto}body.nis-admin .service-assignment{grid-template-columns:1fr}body.nis-admin .teacher-save .btn{width:100%}body.nis-admin .services-toolbar{align-items:flex-start;flex-direction:column}body.nis-admin .service-card{align-items:flex-end;padding:19px}body.nis-admin .service-meta{gap:22px}body.nis-admin .service-card>.btn{min-width:82px}}
