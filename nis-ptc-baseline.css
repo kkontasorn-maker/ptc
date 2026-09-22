@@ -94,4 +94,20 @@ body.nis-parent .code-error{text-align:center;margin:12px 0 0}
 body.nis-parent .verify-button{display:block;width:100%;margin-top:23px}
 body.nis-parent .resend-link{display:block;border:0;background:transparent;color:var(--nis-red);font-size:12px;font-weight:600;text-decoration:underline;text-underline-offset:3px;margin:14px auto 0;padding:4px}
 body.nis-parent .resend-link:focus-visible{outline:2px solid var(--nis-text);outline-offset:2px}
-@media(max-width:600px){body.nis-admin .app-logo,body.nis-teacher .app-logo,body.nis-parent .app-logo{width:145px}body.nis-admin .sidebar .brand{padding:0}body.nis-parent .confirm-card{padding:21px}body.nis-parent .confirm-logo{width:155px}body.nis-parent .code-card{margin:18px auto;padding:28px 18px}body.nis-parent .code-boxes{gap:6px}body.nis-parent .code-digit{height:50px;font-size:21px}}
+body.nis-parent .manage-lookup{max-width:560px}
+body.nis-parent .your-bookings{display:grid;gap:13px}
+body.nis-parent .parent-booking-card{margin:0;padding:20px 21px;background:var(--nis-white);border:0.5px solid var(--nis-gray);border-radius:11px}
+body.nis-parent .booking-card-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px}
+body.nis-parent .booking-card-head h2{font-size:16px;font-weight:600;margin:0;color:#252525}
+body.nis-parent .booking-card-head span{color:var(--nis-text);font-size:11px;text-align:right}
+body.nis-parent .parent-booking-card p{margin:0}
+body.nis-parent .booking-student{color:#252525;font-size:13px;padding-top:12px}
+body.nis-parent .booking-when{color:var(--nis-text);font-size:12px;padding-top:5px}
+body.nis-parent .booking-actions{display:flex;gap:9px;margin-top:17px;padding-top:15px;border-top:0.5px solid var(--nis-gray)}
+body.nis-parent .booking-actions .btn{min-width:105px}
+body.nis-parent .booking-lock{display:flex;align-items:center;gap:8px;margin-top:17px;padding-top:14px;border-top:0.5px solid var(--nis-gray);color:var(--nis-text);font-size:11px}
+body.nis-parent .booking-lock svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+body.nis-parent .manage-footer{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
+body.nis-parent .empty-bookings{padding:32px;text-align:center;background:var(--nis-white);border:0.5px solid var(--nis-gray);border-radius:11px}
+body.nis-parent .empty-bookings p{color:var(--nis-text);font-size:13px;margin:7px 0 0}
+@media(max-width:600px){body.nis-admin .app-logo,body.nis-teacher .app-logo,body.nis-parent .app-logo{width:145px}body.nis-admin .sidebar .brand{padding:0}body.nis-parent .confirm-card{padding:21px}body.nis-parent .confirm-logo{width:155px}body.nis-parent .code-card{margin:18px auto;padding:28px 18px}body.nis-parent .code-boxes{gap:6px}body.nis-parent .code-digit{height:50px;font-size:21px}body.nis-parent .booking-card-head{display:block}body.nis-parent .booking-card-head span{display:block;text-align:left;margin-top:5px}body.nis-parent .booking-actions .btn{flex:1;min-width:0}body.nis-parent .manage-footer{display:grid;grid-template-columns:1fr 1fr}body.nis-parent .manage-footer .btn{white-space:normal;padding-inline:8px}}
