@@ -1,0 +1,18 @@
+/* Events page attention hierarchy. Tints are the supplied NIS reds/gray over white. */
+body.nis-admin .nav{background:transparent;color:#64676A;border-left:3px solid transparent}
+body.nis-admin .nav.active{background:rgba(140,14,6,.08);color:#8C0E06;border-left:3px solid #8C0E06}
+body.nis-admin .nav.active .nav-icon{color:#8C0E06}
+body.nis-admin #listView #newEvent{background:#8C0E06;border:0.5px solid #8C0E06;color:#FFFFFF;box-shadow:none}
+body.nis-admin #listView #newEvent:hover{background:#8C0E06;filter:brightness(.94)}
+body.nis-admin .metric{border:0.5px solid #BCBCBC;background:#FFFFFF;box-shadow:none}
+body.nis-admin .metric .label{display:flex;align-items:center;gap:9px;color:#64676A}
+body.nis-admin .metric-icon{width:26px;height:26px;border-radius:7px;display:inline-grid;place-items:center;flex:none;background:rgba(188,188,188,.22);color:#64676A;font-size:15px;line-height:1}
+body.nis-admin .metric-icon.upcoming{background:rgba(140,14,6,.09);color:#8C0E06}
+body.nis-admin .date-tile{background:rgba(188,188,188,.20);border-radius:9px;padding:6px;color:#64676A}
+body.nis-admin .date-tile small{color:#64676A}
+body.nis-admin .date-tile strong{color:#8C0E06}
+body.nis-admin .pill.scheduled{background:rgba(140,14,6,.09);color:#8C0E06}
+body.nis-admin .pill.draft,body.nis-admin .pill.past{background:rgba(188,188,188,.20);color:#64676A}
+body.nis-admin .event-action{background:#FFFFFF;border:0.5px solid #64676A;color:#64676A;box-shadow:none}
+body.nis-admin .event-action.primary{background:#8C0E06;border-color:#8C0E06;color:#FFFFFF}
+body.nis-admin .event-action.primary:hover{background:#8C0E06;filter:brightness(.94)}

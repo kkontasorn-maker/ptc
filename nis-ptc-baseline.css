@@ -1,0 +1,71 @@
+:root{--nis-red:#8C0E06;--nis-bright:#E62125;--nis-blue:#225085;--nis-gray:#BCBCBC;--nis-text:#64676A;--nis-white:#FFFFFF;--nis-surface:rgba(188,188,188,.13);--nis-soft:rgba(188,188,188,.20)}
+body.nis-admin,body.nis-teacher,body.nis-parent{font-family:Arial,Helvetica,sans-serif;background:var(--nis-surface);color:var(--nis-text)}
+body.nis-admin h1,body.nis-admin h2,body.nis-teacher h1,body.nis-teacher h2,body.nis-parent h1,body.nis-parent h2{color:var(--nis-text);letter-spacing:-.025em}
+body.nis-admin h1,body.nis-teacher h1,body.nis-parent h1{font-weight:600}
+body.nis-admin h2,body.nis-teacher h2,body.nis-parent h2{font-weight:600}
+body.nis-admin .panel,body.nis-admin .metric,body.nis-teacher .card,body.nis-parent .panel{background:var(--nis-white);border:0.5px solid var(--nis-gray);border-radius:13px;box-shadow:none}
+body.nis-admin .btn,body.nis-teacher .btn,body.nis-parent .btn{background:var(--nis-white);color:var(--nis-text);border:0.5px solid var(--nis-text);box-shadow:none;font-weight:600;min-height:44px}
+body.nis-admin .btn.primary,body.nis-teacher .btn.primary,body.nis-parent .btn.primary{background:var(--nis-red);border-color:var(--nis-red);color:var(--nis-white)}
+body.nis-admin .btn.primary:hover,body.nis-teacher .btn.primary:hover,body.nis-parent .btn.primary:hover{background:var(--nis-red);filter:brightness(.94)}
+body.nis-admin .eyebrow,body.nis-teacher .eyebrow,body.nis-parent .eyebrow{color:var(--nis-text);font-weight:600}
+body.nis-admin .sub,body.nis-teacher .sub,body.nis-parent .sub{color:var(--nis-text)}
+body.nis-admin .app-logo,body.nis-teacher .app-logo,body.nis-parent .app-logo{display:block;width:180px;max-width:100%;height:auto}
+body.nis-admin .topbar,body.nis-teacher .top,body.nis-parent .top{background:var(--nis-white);border-bottom:0.5px solid var(--nis-gray)}
+body.nis-admin .sidebar{background:var(--nis-white);color:var(--nis-text);border-right:0.5px solid var(--nis-gray)}
+body.nis-admin .sidebar .brand{padding:0 9px 28px}
+body.nis-admin .side-label,body.nis-admin .sidebar-bottom{color:var(--nis-text)}
+body.nis-admin .sidebar-bottom{border-top:0.5px solid var(--nis-gray)}
+body.nis-admin .nav{color:var(--nis-text)}
+body.nis-admin .nav.active{background:var(--nis-soft);color:var(--nis-text);border-left:3px solid var(--nis-red)}
+body.nis-admin .avatar,body.nis-teacher .avatar{background:var(--nis-soft);color:var(--nis-text)}
+body.nis-admin .metric .value,body.nis-admin .event-title,body.nis-admin .summary-row b{color:var(--nis-text)}
+body.nis-admin .metric .hint,body.nis-admin .metric .label,body.nis-admin .event-meta,body.nis-admin .field .help{color:var(--nis-text)}
+body.nis-admin .date-tile,body.nis-teacher .date-chip{background:var(--nis-soft);color:var(--nis-text)}
+body.nis-admin .pill.scheduled,body.nis-admin .pill.draft,body.nis-admin .pill.past{background:var(--nis-soft);color:var(--nis-text)}
+body.nis-admin .tab.active{color:var(--nis-text);background:var(--nis-white)}
+body.nis-admin .tabs,body.nis-admin .tip{background:var(--nis-soft);color:var(--nis-text)}
+body.nis-admin .back,body.nis-admin .btn.ghost{color:var(--nis-text)}
+body.nis-admin .flow .current{color:var(--nis-text)}
+body.nis-admin .flow .current .dot{background:var(--nis-red);color:var(--nis-white)}
+body.nis-admin .toggle-line input{accent-color:var(--nis-red)}
+body.nis-admin .field input,body.nis-admin .field select,body.nis-parent .field input,body.nis-parent .field select,body.nis-teacher .field input{border:0.5px solid var(--nis-text);background:var(--nis-white);color:var(--nis-text)}
+body.nis-admin button:focus-visible,body.nis-teacher button:focus-visible,body.nis-parent button:focus-visible,body.nis-parent .choice:focus-visible{outline:2px solid var(--nis-text);outline-offset:2px}
+body.nis-admin .field input:focus,body.nis-admin .field select:focus,body.nis-parent .field input:focus,body.nis-parent .field select:focus,body.nis-teacher .field input:focus{outline:2px solid var(--nis-text);outline-offset:2px}
+body.nis-admin .toast,body.nis-teacher .toast,body.nis-parent .toast{background:var(--nis-text);color:var(--nis-white)}
+body.nis-teacher .notice.open,body.nis-teacher .notice.locked,body.nis-parent .note,body.nis-parent .warning{background:var(--nis-soft);color:var(--nis-text);border:0.5px solid var(--nis-gray)}
+body.nis-teacher .notice.locked,body.nis-parent .warning{border-left:3px solid var(--nis-text)}
+body.nis-teacher .preview,body.nis-parent .summary{background:var(--nis-soft);color:var(--nis-text)}
+body.nis-teacher .preview label,body.nis-teacher .preview input{color:var(--nis-text);accent-color:var(--nis-text)}
+body.nis-teacher .swatch{background:var(--nis-white);border:1px solid var(--nis-text)}
+body.nis-teacher .swatch.break{background:var(--nis-soft);border-style:dashed}
+body.nis-teacher .fc{--fc-border-color:var(--nis-gray);--fc-today-bg-color:var(--nis-white)}
+body.nis-teacher .fc .booking-event{background:var(--nis-white);border:1px solid var(--nis-text);color:var(--nis-text);box-shadow:none}
+body.nis-teacher .fc .break-event{background:var(--nis-soft);border:1px dashed var(--nis-text);color:var(--nis-text);box-shadow:none}
+body.nis-teacher .calendar-locked .fc-event{filter:grayscale(1);opacity:.55}
+body.nis-teacher .fc .fc-highlight{background:var(--nis-soft)}
+body.nis-teacher .btn.danger{background:var(--nis-white);border:0.5px solid var(--nis-text);color:var(--nis-text)}
+body.nis-teacher .modal,body.nis-teacher .sheet{background:var(--nis-white);color:var(--nis-text)}
+body.nis-parent .brand{color:var(--nis-text)}
+body.nis-parent .top-link{color:var(--nis-text);text-decoration:underline}
+body.nis-parent .progress span{background:var(--nis-soft)}
+body.nis-parent .progress span.on{background:var(--nis-red)}
+body.nis-parent .choice,body.nis-parent .teacher,body.nis-parent .slot{background:var(--nis-white);color:var(--nis-text);border:0.5px solid var(--nis-gray);box-shadow:none}
+body.nis-parent .choice:hover,body.nis-parent .choice.selected,body.nis-parent .teacher.selected,body.nis-parent .slot.selected{background:var(--nis-soft);color:var(--nis-text);border:1px solid var(--nis-text);box-shadow:none}
+body.nis-parent .slot:disabled{background:var(--nis-soft);color:var(--nis-text);opacity:.55}
+body.nis-parent .auth .btn.selected{background:var(--nis-soft);border:1px solid var(--nis-text)}
+body.nis-parent .booking-card,body.nis-parent .email-preview{background:var(--nis-white);border:0.5px solid var(--nis-gray)}
+body.nis-parent .booking-card b,body.nis-parent .summary b{color:var(--nis-text);font-weight:600}
+body.nis-parent .success{background:#E7F3EA;color:#1F6B3A;width:40px;height:40px;font-size:21px;font-weight:400}
+body.nis-parent .error{color:var(--nis-text)}
+body.nis-parent .confirm-card{max-width:550px;margin:auto;padding:26px}
+body.nis-parent .confirm-logo{width:170px;height:auto;display:block;margin:0 0 23px}
+body.nis-parent .confirm-card h1{font-size:27px;font-weight:500;color:#252525}
+body.nis-parent .confirm-card .sub{margin:7px 0 20px;font-size:13px}
+body.nis-parent .confirm-detail{display:flex;justify-content:space-between;gap:18px;border-top:0.5px solid var(--nis-gray);padding:12px 0;font-size:12px;line-height:1.45}
+body.nis-parent .confirm-detail span{color:var(--nis-text)}
+body.nis-parent .confirm-detail strong{font-weight:400;color:var(--nis-text);text-align:right}
+body.nis-parent .confirm-card .actions{display:grid;grid-template-columns:1fr;justify-content:stretch;gap:9px;margin-top:20px}
+body.nis-parent .confirm-card .actions .btn{width:100%;margin:0}
+body.nis-parent .confirm-card .email-preview{margin-top:19px}
+body.nis-parent.confirmation-mode .top{display:none}
+@media(max-width:600px){body.nis-admin .app-logo,body.nis-teacher .app-logo,body.nis-parent .app-logo{width:145px}body.nis-admin .sidebar .brand{padding:0}body.nis-parent .confirm-card{padding:21px}body.nis-parent .confirm-logo{width:155px}}
