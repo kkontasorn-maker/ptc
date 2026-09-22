@@ -29,4 +29,15 @@ body.nis-admin .switch input:checked+span{background:#8C0E06;border-color:#8C0E0
 body.nis-admin .switch input:checked+span::after{transform:translateX(18px);background:#FFFFFF}
 body.nis-admin .switch input:focus-visible+span{outline:2px solid #64676A;outline-offset:3px}
 body.nis-admin .event-create-form .form-actions{justify-content:flex-end;margin-top:28px}
-@media(max-width:600px){body.nis-admin .event-create-form{padding:21px}body.nis-admin .event-create-form .split{grid-template-columns:1fr}body.nis-admin .event-create-form .form-actions{display:grid;grid-template-columns:1fr 1fr}body.nis-admin .event-create-form .form-actions .btn{width:100%;padding-inline:8px}}
+body.nis-admin .bookings-panel{overflow:hidden}
+body.nis-admin .table-scroll{overflow-x:auto}
+body.nis-admin .bookings-table{width:100%;border-collapse:collapse;min-width:650px;text-align:left}
+body.nis-admin .bookings-table th{padding:15px 22px;background:rgba(188,188,188,.14);border-bottom:0.5px solid #BCBCBC;color:#64676A;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+body.nis-admin .bookings-table td{padding:18px 22px;border-bottom:0.5px solid rgba(188,188,188,.65);color:#252525;font-size:13px}
+body.nis-admin .bookings-table tr:last-child td{border-bottom:0}
+body.nis-admin .bookings-table .student-cell{font-weight:600}
+body.nis-admin .bookings-table .is-cancelled .student-cell{text-decoration:line-through;color:#64676A}
+body.nis-admin .booking-status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:600;white-space:nowrap}
+body.nis-admin .booking-status.confirmed{background:rgba(188,188,188,.24);color:#64676A}
+body.nis-admin .booking-status.cancelled{background:rgba(140,14,6,.09);color:#8C0E06}
+@media(max-width:600px){body.nis-admin .event-create-form{padding:21px}body.nis-admin .event-create-form .split{grid-template-columns:1fr}body.nis-admin .event-create-form .form-actions{display:grid;grid-template-columns:1fr 1fr}body.nis-admin .event-create-form .form-actions .btn{width:100%;padding-inline:8px}body.nis-admin #bookingsNav{display:flex}body.nis-admin #bookingsView .heading-row{align-items:flex-end}body.nis-admin .bookings-table th,body.nis-admin .bookings-table td{padding:14px 16px}}

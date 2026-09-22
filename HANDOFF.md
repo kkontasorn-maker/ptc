@@ -36,6 +36,8 @@ This is a set of **interactive, static UX prototypes**, not a connected booking 
 
 The Events list includes status filtering and seeded past/upcoming conferences. Create/Edit captures the event name, conference date, change cutoff date and time in Chiang Mai time (ICT), and whether the event is open for parent booking. The two save paths create either a private draft or an event using the selected booking visibility. Events persist in browser `localStorage` under `nis-ptc-events-v1`. Services, Teachers, and Booking fields remain future setup steps; those editors are not implemented yet.
 
+The Bookings navigation item opens a read-only table for the selected sample event with Student, Teacher, Time, and Status columns. Confirmed bookings use a neutral pill; cancelled bookings use a light red pill and strike through the student name. Export CSV downloads the displayed rows as `nis-ptc-bookings-2026-10-16.csv`.
+
 ### Teacher
 
 The teacher page shows a fixed sample event on **16 October 2026**, from **08:00–15:30 ICT**, with a **14 October 2026 at 17:00 ICT** cutoff. It is a single-column vertical agenda with one row per 10-minute slot. Bookings use a dark-red left accent and drag handle; breaks use a hatched background and dashed border; open rows use a dashed outline. Dragging a booking onto an open row opens a confirmation step before saving. On narrow screens, tapping a booking opens a time picker and then the same confirmation step. The secondary “Block time” button adds a checked break range. Conflicting or out-of-window times are rejected. The “Preview cutoff passed” checkbox shows the read-only state. Changes persist in `localStorage` under `nis-ptc-teacher-list-v1`.
