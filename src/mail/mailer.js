@@ -53,30 +53,63 @@ function createTransport(mail) {
   });
 }
 
+function rememberDelivery(mail, row) {
+  if (!row.purpose || typeof mail?.recordDelivery !== 'function') return;
+  try {
+    mail.recordDelivery(row);
+  } catch (error) {
+    console.error('Could not record email delivery');
+  }
+}
+
 /**
  * Every outbound message goes through here. Callers pass the intended
- * recipient; this function applies the allowlist before SMTP or the log.
+ * recipient, a purpose, and an optional related id. The allowlist runs
+ * before SMTP or the log. A completed attempt — real recipient or
+ * allowlist redirect — is recorded as status sent. A thrown SMTP error
+ * is not recorded.
  */
-export async function sendMail({ mail, to, subject, text, transport }) {
+export async function sendMail({
+  mail,
+  to,
+  subject,
+  text,
+  transport,
+  purpose,
+  relatedId = null,
+}) {
   const gated = gateRecipient({
     to,
     subject,
     text,
     allowlist: mail?.allowlist ?? null,
   });
+  let delivered = false;
+  let providerMessageId = null;
   if (!mail?.configured) {
     const redirect = gated.redirected ? ` redirected from ${gated.intended}` : '';
     console.info(`Email for ${gated.to}${redirect}\nSubject: ${gated.subject}\n${gated.text}`);
-    return { delivered: false, ...gated };
+  } else {
+    const client = transport || mail.transport || createTransport(mail);
+    const info = await client.sendMail({
+      from: mail.from,
+      to: gated.to,
+      subject: gated.subject,
+      text: gated.text,
+    });
+    delivered = true;
+    const messageId = info?.messageId;
+    providerMessageId = typeof messageId === 'string' && messageId.trim()
+      ? messageId.trim()
+      : null;
   }
-  const client = transport || createTransport(mail);
-  await client.sendMail({
-    from: mail.from,
-    to: gated.to,
-    subject: gated.subject,
-    text: gated.text,
+  rememberDelivery(mail, {
+    recipientEmail: String(to ?? '').trim().toLowerCase(),
+    purpose,
+    relatedId,
+    providerMessageId,
   });
-  return { delivered: true, ...gated };
+  return { delivered, provider_message_id: providerMessageId, ...gated };
 }
 
 export function conflictNoticeText({ teacherName, combos }) {
@@ -93,17 +126,26 @@ export function conflictNoticeText({ teacherName, combos }) {
   return lines.join('\n\n');
 }
 
-export async function deliverConflictNotice({ mail, email, teacherName, combos, transport }) {
+export async function deliverConflictNotice({
+  mail,
+  email,
+  teacherName,
+  combos,
+  transport,
+  relatedId = null,
+}) {
   return sendMail({
     mail,
     to: email,
     subject: 'Your Parent-Teacher Conference booking has changed',
     text: `${conflictNoticeText({ teacherName, combos })}\n`,
     transport: transport || mail?.transport,
+    purpose: 'conflict_notification',
+    relatedId,
   });
 }
 
-export async function deliverVerificationCode({ mail, email, code, transport }) {
+export async function deliverVerificationCode({ mail, email, code, transport, relatedId = null }) {
   const text = `Your NIS conferences code is ${code}. It expires in 10 minutes.`;
   return sendMail({
     mail,
@@ -111,6 +153,8 @@ export async function deliverVerificationCode({ mail, email, code, transport }) 
     subject: 'Your NIS conferences code',
     text,
     transport,
+    purpose: 'verification_code',
+    relatedId,
   });
 }
 
@@ -128,12 +172,21 @@ export function summaryMessage({ eventName, bookings }) {
   return `${lines.join('\n').trim()}\n`;
 }
 
-export async function deliverSummary({ mail, email, eventName, bookings, transport }) {
+export async function deliverSummary({
+  mail,
+  email,
+  eventName,
+  bookings,
+  transport,
+  relatedId = null,
+}) {
   return sendMail({
     mail,
     to: email,
     subject: `Your NIS conferences — ${eventName}`,
     text: summaryMessage({ eventName, bookings }),
     transport,
+    purpose: 'summary',
+    relatedId,
   });
 }

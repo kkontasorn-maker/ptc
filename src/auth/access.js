@@ -16,6 +16,18 @@ export function rejectFrontOfficeWrite(req, res, next) {
   next();
 }
 
+export function requireItAdminOrFrontOffice(req, res, next) {
+  if (!req.user) {
+    next(new UnauthorizedError('Sign in required'));
+    return;
+  }
+  if (req.user.role === 'it_admin' || req.user.role === 'front_office') {
+    next();
+    return;
+  }
+  next(new ForbiddenError('You do not have access to this action'));
+}
+
 export function requireItAdmin(req, res, next) {
   if (!req.user) {
     next(new UnauthorizedError('Sign in required'));

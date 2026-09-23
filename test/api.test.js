@@ -147,7 +147,9 @@ describe('admin API', { concurrency: false }, () => {
       'booking_conflict_log',
       'bookings',
       'device_verifications',
+      'email_deliveries',
       'events',
+      'parent_contact_preferences',
       'services',
       'staff',
       'staff_services',
@@ -166,6 +168,8 @@ describe('admin API', { concurrency: false }, () => {
       'idx_bookings_no_overlap',
       'idx_bookings_staff_event',
       'idx_device_verifications_lookup',
+      'idx_email_deliveries_recipient',
+      'idx_email_deliveries_status',
       'idx_verification_codes_email',
     ]);
   });

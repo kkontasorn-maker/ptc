@@ -118,6 +118,7 @@ function parseRoute(hash) {
   if (parts[0] === 'book' && parts[1]) return { name: 'book', id: parts[1] };
   if (parts[0] === 'agenda') return parts[1] ? { name: 'agenda', id: parts[1] } : { name: 'agenda' };
   if (parts[0] === 'sign-in') return { name: 'sign-in', error };
+  if (parts[0] === 'notifications') return { name: 'notifications' };
   if (parts[0] === 'staff') {
     return parts[1] ? { name: 'staff-edit', id: parts[1] } : { name: 'staff' };
   }
@@ -159,6 +160,13 @@ function IconCalendar() {
   return html`<svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
     <rect x="3.5" y="5" width="17" height="15.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
     <path d="M3.5 10h17M8 3.5V6M16 3.5V6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>`;
+}
+
+function IconMail() {
+  return html`<svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="3.5" y="5.5" width="17" height="13" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>`;
 }
 
@@ -210,6 +218,9 @@ function Shell({ user, active, onSignOut, children }) {
         <a href="#/staff" className=${active === 'staff' ? 'active' : ''} aria-current=${active === 'staff' ? 'page' : undefined}>
           <${IconPeople} /> Staff
         </a>
+        ${user.role === 'it_admin' || user.role === 'front_office' ? html`<a href="#/notifications" className=${active === 'notifications' ? 'active' : ''} aria-current=${active === 'notifications' ? 'page' : undefined}>
+          <${IconMail} /> Notification issues
+        </a>` : null}
       </nav>
       <div className="header-user">
         <div className="who">
@@ -226,7 +237,7 @@ function Shell({ user, active, onSignOut, children }) {
 function AccessNote({ user }) {
   if (user.role === 'it_admin') return null;
   const text = user.role === 'front_office'
-    ? 'Front office can review conferences and the booking report. Changes are limited to IT admin.'
+    ? 'Front office can review conferences, the booking report, and notification issues. Changes are limited to IT admin.'
     : user.role === 'teacher'
       ? 'Your schedule is on Agenda. This screen is read-only.'
       : 'This area is for staff.';
@@ -299,6 +310,8 @@ function VerifyEmailScreen({ returnTo = '', initialEmail = '' }) {
   const [error, setError] = useState('');
   const [children, setChildren] = useState(null);
   const [unmatched, setUnmatched] = useState(false);
+  const [contactType, setContactType] = useState('line');
+  const [contactValue, setContactValue] = useState('');
 
   function reset() {
     setStep('email');
@@ -307,6 +320,8 @@ function VerifyEmailScreen({ returnTo = '', initialEmail = '' }) {
     setError('');
     setChildren(null);
     setUnmatched(false);
+    setContactType('line');
+    setContactValue('');
   }
 
   async function loadChildren(address) {
@@ -314,7 +329,34 @@ function VerifyEmailScreen({ returnTo = '', initialEmail = '' }) {
     try { sessionStorage.setItem('ptcParentEmail', address); } catch { /* private mode */ }
     setChildren(data.children || []);
     setUnmatched(false);
+    setStep('contact');
+  }
+
+  function skipContact() {
+    setError('');
     setStep('done');
+  }
+
+  async function saveContact(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await api('/parents/me/contact-preference', {
+        method: 'PATCH',
+        body: {
+          email: email.trim(),
+          fallback_contact_type: contactType,
+          fallback_contact_value: contactValue.trim(),
+        },
+        allow401: true,
+      });
+      setStep('done');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function continueEmail(event) {
@@ -404,6 +446,23 @@ function VerifyEmailScreen({ returnTo = '', initialEmail = '' }) {
             </label>
             <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Checking…' : 'Verify'}</button>
             <button className="btn btn-secondary" type="button" onClick=${reset}>Use a different email</button>
+          </form>` : null}
+          ${step === 'contact' ? html`<form className="card form" onSubmit=${saveContact}>
+            <p className="muted">If email does not reach you, front office can use another way to get in touch. This is optional.</p>
+            <label className="field">
+              <span className="field-label">How else can we reach you?</span>
+              <select className="input" value=${contactType} onChange=${(event) => setContactType(event.target.value)}>
+                <option value="line">LINE</option>
+                <option value="phone">Phone</option>
+                <option value="wechat">WeChat</option>
+              </select>
+            </label>
+            <label className="field">
+              <span className="field-label">${contactType === 'phone' ? 'Phone number' : contactType === 'wechat' ? 'WeChat ID' : 'LINE ID'}</span>
+              <input className="input" name="fallback" value=${contactValue} onInput=${(event) => setContactValue(event.target.value)} />
+            </label>
+            <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Saving…' : 'Save contact'}</button>
+            <button className="btn btn-secondary" type="button" onClick=${skipContact}>Skip</button>
           </form>` : null}
           ${step === 'done' && unmatched ? html`<div className="card">
             <p>We couldn't match this email to a student. Please contact the front office.</p>
@@ -2019,6 +2078,84 @@ function AgendaScreen({ user, eventId, timeZone }) {
   </${Shell}>`;
 }
 
+const PURPOSE_LABEL = {
+  verification_code: 'Verification code',
+  booking_confirmation: 'Booking confirmation',
+  summary: 'Summary',
+  conflict_notification: 'Schedule change',
+};
+
+function formatSentAt(sentAt, timeZone) {
+  if (!sentAt) return '';
+  const iso = sentAt.includes('T') ? sentAt : `${sentAt.replace(' ', 'T')}Z`;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return sentAt;
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timeZone || 'Asia/Bangkok',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function fallbackLabel(contact) {
+  if (!contact || contact.fallback_contact_type === 'none' || !contact.fallback_contact_value) {
+    return 'None on file';
+  }
+  const names = { line: 'LINE', phone: 'Phone', wechat: 'WeChat' };
+  const name = names[contact.fallback_contact_type] || contact.fallback_contact_type;
+  return `${name} ${contact.fallback_contact_value}`;
+}
+
+function IssueStatus({ issue }) {
+  if (issue.status === 'bounced' || issue.status === 'complained') {
+    const label = issue.status === 'bounced' ? 'Bounced' : 'Complained';
+    return html`<span className="pill attention">${label}</span>`;
+  }
+  return html`<span className="pill">Unconfirmed</span>`;
+}
+
+function NotificationIssuesScreen({ user, timeZone }) {
+  const [state, setState] = useState({ loading: true, error: null, issues: [] });
+
+  const load = useCallback(() => {
+    setState((current) => ({ ...current, loading: true, error: null }));
+    api('/admin/notifications/delivery-issues')
+      .then((data) => setState({ loading: false, error: null, issues: data.issues || [] }))
+      .catch((error) => setState({ loading: false, error, issues: [] }));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return html`<${Shell} user=${user} active="notifications">
+    <div className="screen-head">
+      <div>
+        <h1>Notification issues</h1>
+        <p className="lede">Emails that bounced, were marked as spam, or were never confirmed as delivered.</p>
+      </div>
+      ${state.error ? html`<button type="button" className="btn btn-primary" onClick=${load}>Try again</button>` : null}
+    </div>
+    <div className="stack">
+      <p className="muted">${user.role === 'front_office'
+        ? 'This list is read-only. Follow up with the family directly.'
+        : 'Follow up with the family directly. There is no resend from this screen.'}</p>
+      ${state.loading ? html`<p className="muted">Loading notification issues…</p>` : null}
+      ${state.error ? html`<div className="note">${state.error.message}</div>` : null}
+      ${!state.loading && !state.error && state.issues.length === 0 ? html`<div className="card"><p>No notification issues.</p></div>` : null}
+      ${state.issues.map((issue) => html`<article className="card" key=${issue.id}>
+        <div className="data-row"><div className="data-label">Recipient</div><div className="data-value">${issue.recipient_email}</div></div>
+        <div className="data-row"><div className="data-label">Purpose</div><div className="data-value">${PURPOSE_LABEL[issue.purpose] || issue.purpose}</div></div>
+        <div className="data-row"><div className="data-label">Sent</div><div className="data-value">${formatSentAt(issue.sent_at, timeZone)}</div></div>
+        <div className="data-row"><div className="data-label">Status</div><div className="data-value"><${IssueStatus} issue=${issue} /></div></div>
+        <div className="data-row"><div className="data-label">Fallback contact</div><div className="data-value">${fallbackLabel(issue.fallback_contact)}</div></div>
+        ${issue.status_detail ? html`<div className="data-row"><div className="data-label">Detail</div><div className="data-value">${issue.status_detail}</div></div>` : null}
+      </article>`)}
+    </div>
+  </${Shell}>`;
+}
+
 function App() {
   const route = useRoute();
   const [user, setUser] = useState(undefined);
@@ -2055,6 +2192,7 @@ function App() {
       'sign-in': 'Sign in',
       verify: 'Verify your email',
       book: 'Book a conference',
+      notifications: 'Notification issues',
     };
     document.title = `${titles[route.name] || 'Conferences'} — Nakornpayap International School`;
   }, [route.name]);
@@ -2091,6 +2229,7 @@ function App() {
   if (route.name === 'services') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="services" timeZone=${timeZone} />`;
   if (route.name === 'availability') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="availability" timeZone=${timeZone} />`;
   if (route.name === 'bookings') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="bookings" timeZone=${timeZone} />`;
+  if (route.name === 'notifications') return html`<${NotificationIssuesScreen} user=${user} timeZone=${timeZone} />`;
   if (route.name === 'staff') return html`<${StaffScreen} user=${user} />`;
   if (route.name === 'staff-edit') return html`<${StaffEditScreen} user=${user} staffId=${route.id} />`;
   return html`<${EventsScreen} user=${user} />`;

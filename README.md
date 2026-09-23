@@ -127,6 +127,16 @@ When `cutoff_at` is in the past and `summary_sent_at` is empty, the server email
 
 `node server.js` runs that check at startup and then every 60 seconds. Set `SUMMARY_INTERVAL_MS=0` to run only at startup. Without `SMTP_HOST`, the message is written to the server log instead of emailed, and the event is still marked sent. The same `EMAIL_ALLOWLIST` gate applies before that log or SMTP send.
 
+## Notification issues
+
+Every completed send through the shared mail function writes an `email_deliveries` row with status `sent`. The recipient stored is the parent address, including when `EMAIL_ALLOWLIST` redirects the SMTP envelope. If the mail client returns a message id, it is stored. Plain SMTP that does not return one leaves `provider_message_id` empty, and that row stays `sent` until it ages into the unconfirmed list.
+
+Sign in as `it.admin@nis.ac.th` or `front.office@nis.ac.th` and open [Notification issues](http://127.0.0.1:47231/#/notifications). The list shows bounced and complained mail, plus anything still `sent` with no status update after `DELIVERY_ISSUE_STALE_HOURS` (default 24). Front office can read the list and cannot change it. There is no resend button.
+
+After a parent verifies their email, the verify page asks for an optional LINE ID, phone number, or WeChat ID. Skip does not save anything. Saving calls `PATCH /api/v1/parents/me/contact-preference`. Verification and booking do not wait for that step.
+
+Webhook delivery updates are `POST /api/v1/webhooks/email-status`. The route does not use a staff session. It checks `EMAIL_WEBHOOK_PROVIDER` and `EMAIL_WEBHOOK_SECRET`. Until both are set, the route returns 401. Adapters are `hmac`, `postmark`, `mailgun`, `sendgrid`, and `ses`. See `.env.example` for the header and body each one expects. A signed event with an unknown message id still returns 200.
+
 ## Not in this slice
 
 - `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route

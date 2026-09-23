@@ -13,7 +13,12 @@ export function createVerificationRoutes({ verifications, mail, exposeDevCode })
     const reserved = verifications.reserveCode(email);
     if (reserved.limited) throw new RateLimitError();
     try {
-      await deliverVerificationCode({ mail, email, code: reserved.code });
+      await deliverVerificationCode({
+        mail,
+        email,
+        code: reserved.code,
+        relatedId: reserved.id,
+      });
     } catch (error) {
       verifications.deleteCode(reserved.id);
       console.error(error);

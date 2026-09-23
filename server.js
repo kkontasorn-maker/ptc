@@ -19,6 +19,9 @@ const server = app.listen(config.port, config.host, () => {
   console.log(config.mail.allowlist
     ? `Email allowlist: on, non-matches redirect to ${config.mail.allowlist[0]}`
     : 'Email allowlist: off (EMAIL_ALLOWLIST is unset — real recipients)');
+  console.log(config.webhook.provider && config.webhook.secret
+    ? `Email webhooks: ${config.webhook.provider}`
+    : 'Email webhooks: not configured (POST /api/v1/webhooks/email-status returns 401 until EMAIL_WEBHOOK_PROVIDER and EMAIL_WEBHOOK_SECRET are set)');
   const every = Number.isFinite(config.summaryIntervalMs) && config.summaryIntervalMs > 0
     ? `then every ${Math.round(config.summaryIntervalMs / 1000)} seconds`
     : 'then not again until the next restart';
@@ -27,7 +30,7 @@ const server = app.listen(config.port, config.host, () => {
 
 const stopSummary = startSummaryJob({
   repos: app.locals.repos,
-  mail: config.mail,
+  mail: app.locals.mail,
   psapi: app.locals.psapi,
   timeZone: config.timeZone,
   intervalMs: config.summaryIntervalMs,

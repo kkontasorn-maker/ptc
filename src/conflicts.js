@@ -56,6 +56,7 @@ export async function notifyStrandedParents({
         mail,
         email,
         teacherName,
+        relatedId: bookings[0]?.log_id ?? null,
         combos: bookings.map((booking) => ({
           date,
           student: booking.student_name,

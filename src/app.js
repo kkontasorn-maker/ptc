@@ -12,6 +12,7 @@ import { StaffRepository } from './repositories/StaffRepository.js';
 import { AvailabilityRepository } from './repositories/AvailabilityRepository.js';
 import { BookingRepository } from './repositories/BookingRepository.js';
 import { VerificationRepository } from './repositories/VerificationRepository.js';
+import { NotificationRepository } from './repositories/NotificationRepository.js';
 import { createAuthRoutes } from './routes/auth.js';
 import { createEventRoutes } from './routes/events.js';
 import { createServiceRoutes } from './routes/services.js';
@@ -22,6 +23,7 @@ import { createVerificationRoutes } from './routes/verification.js';
 import { createParentRoutes } from './routes/parents.js';
 import { createBookingRoutes } from './routes/bookings.js';
 import { createIntegrationRoutes } from './routes/integrations.js';
+import { createNotificationRoutes } from './routes/notifications.js';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -36,8 +38,13 @@ function securityHeaders(req, res, next) {
   next();
 }
 
+function isEmailStatusWebhook(req) {
+  return req.method === 'POST' && (req.path === '/webhooks/email-status'
+    || req.path.endsWith('/webhooks/email-status'));
+}
+
 function rejectCrossSiteMutation(req, res, next) {
-  if (!MUTATING.has(req.method)) {
+  if (!MUTATING.has(req.method) || isEmailStatusWebhook(req)) {
     next();
     return;
   }
@@ -70,6 +77,11 @@ export function createApp(config) {
     availability: new AvailabilityRepository(db),
     bookings: new BookingRepository(db),
     verifications: new VerificationRepository(db),
+    notifications: new NotificationRepository(db),
+  };
+  const mail = config.mail || { configured: false };
+  mail.recordDelivery = (row) => {
+    repos.notifications.recordSent(row);
   };
   const psapi = config.psapiClient || createPsapiClient(config.psapi);
 
@@ -79,9 +91,15 @@ export function createApp(config) {
   app.locals.db = db;
   app.locals.repos = repos;
   app.locals.psapi = psapi;
+  app.locals.mail = mail;
 
   app.use(securityHeaders);
-  app.use(express.json({ limit: '64kb' }));
+  app.use(express.json({
+    limit: '64kb',
+    verify(req, res, buf) {
+      req.rawBody = buf;
+    },
+  }));
   app.use((req, res, next) => {
     const cookies = parseCookies(req.headers.cookie);
     const session = readSessionToken(cookies[SESSION_COOKIE], config.sessionSecret);
@@ -98,17 +116,22 @@ export function createApp(config) {
   api.use('/auth', createAuthRoutes(config));
   api.use('/auth', createVerificationRoutes({
     verifications: repos.verifications,
-    mail: config.mail || { configured: false },
+    mail,
     exposeDevCode: Boolean(config.exposeDevCode),
   }));
   api.use(createParentRoutes({ repos, psapi, timeZone: config.timeZone }));
   api.use(createBookingRoutes({ repos, psapi, timeZone: config.timeZone }));
   api.use(createEventRoutes({ repos, timeZone: config.timeZone }));
   api.use(createServiceRoutes({ repos }));
-  api.use(createStaffRoutes({ repos, psapi, mail: config.mail }));
-  api.use(createAvailabilityRoutes({ repos, timeZone: config.timeZone, mail: config.mail }));
+  api.use(createStaffRoutes({ repos, psapi, mail }));
+  api.use(createAvailabilityRoutes({ repos, timeZone: config.timeZone, mail }));
   api.use(createAgendaRoutes({ repos, timeZone: config.timeZone }));
   api.use(createIntegrationRoutes({ psapi, timeZone: config.timeZone }));
+  api.use(createNotificationRoutes({
+    repos,
+    webhook: config.webhook,
+    staleHours: config.deliveryIssueStaleHours,
+  }));
   api.use((req, res) => {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
   });

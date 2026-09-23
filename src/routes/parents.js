@@ -4,7 +4,7 @@ import { NoStudentMatchError, NotFoundError, UnauthorizedError } from '../errors
 import { asyncHandler } from '../http.js';
 import { buildParentView, presentChildren } from '../parent-view.js';
 import { guardianStudents } from '../psapi/guardian-cache.js';
-import { normalizeEmail, parseRouteId } from '../validate.js';
+import { normalizeEmail, parseRouteId, validateContactPreference } from '../validate.js';
 
 function requireDevice(req, email, verifications) {
   const token = readDeviceToken(req.headers.cookie);
@@ -27,6 +27,13 @@ export function createParentRoutes({ repos, psapi, timeZone }) {
     requireDevice(req, email, repos.verifications);
     const students = await matchedStudents(psapi, email);
     res.json(presentChildren(students));
+  }));
+
+  router.patch('/parents/me/contact-preference', asyncHandler(async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    requireDevice(req, email, repos.verifications);
+    const preference = validateContactPreference(req.body);
+    res.json({ preference: repos.notifications.upsertPreference(preference) });
   }));
 
   router.get('/events/:eventId/parent-view', asyncHandler(async (req, res) => {

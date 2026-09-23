@@ -56,7 +56,13 @@ async function sendDueSummaries({ repos, mail, psapi, now = new Date(), deliver 
     let sent = 0;
     try {
       for (const [email, bookings] of groups) {
-        await deliver({ mail, email, eventName: event.name, bookings });
+        await deliver({
+          mail,
+          email,
+          eventName: event.name,
+          bookings,
+          relatedId: event.id,
+        });
         sent += 1;
       }
       results.push({ event_id: event.id, parents: sent });

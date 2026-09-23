@@ -24,6 +24,13 @@ export function loadRoleMap(filePath) {
   return map;
 }
 
+function deliveryIssueStaleHours(value) {
+  if (value == null || String(value).trim() === '') return 24;
+  const hours = Number(value);
+  if (!Number.isFinite(hours) || hours <= 0) return 24;
+  return Math.floor(hours);
+}
+
 function sessionSecret() {
   if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim()) {
     return process.env.SESSION_SECRET.trim();
@@ -83,6 +90,11 @@ export function loadConfig() {
       from: process.env.SMTP_FROM || 'conferences@nis.ac.th',
       allowlist: parseEmailAllowlist(process.env.EMAIL_ALLOWLIST),
     },
+    webhook: {
+      provider: (process.env.EMAIL_WEBHOOK_PROVIDER || '').trim().toLowerCase(),
+      secret: process.env.EMAIL_WEBHOOK_SECRET || '',
+    },
+    deliveryIssueStaleHours: deliveryIssueStaleHours(process.env.DELIVERY_ISSUE_STALE_HOURS),
     exposeDevCode: process.env.NODE_ENV !== 'production'
       && !process.env.SMTP_HOST,
     summaryIntervalMs: process.env.SUMMARY_INTERVAL_MS == null || process.env.SUMMARY_INTERVAL_MS === ''

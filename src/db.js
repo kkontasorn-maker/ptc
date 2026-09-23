@@ -21,6 +21,7 @@ export function openDatabase(dbPath, schemaPath) {
     db.exec(sql);
   }
   ensureConflictSchema(db);
+  ensureNotificationSchema(db);
   return db;
 }
 
@@ -39,5 +40,32 @@ function ensureConflictSchema(db) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_booking_conflict_log_booking ON booking_conflict_log(booking_id);
+  `);
+}
+
+function ensureNotificationSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_deliveries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipient_email TEXT NOT NULL,
+      purpose TEXT NOT NULL CHECK (purpose IN
+        ('verification_code','booking_confirmation','summary','conflict_notification')),
+      related_id INTEGER,
+      provider_message_id TEXT,
+      status TEXT NOT NULL DEFAULT 'sent'
+        CHECK (status IN ('sent','delivered','bounced','complained','unknown')),
+      status_detail TEXT,
+      sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+      status_updated_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_email_deliveries_recipient ON email_deliveries(recipient_email);
+    CREATE INDEX IF NOT EXISTS idx_email_deliveries_status ON email_deliveries(status);
+
+    CREATE TABLE IF NOT EXISTS parent_contact_preferences (
+      email TEXT PRIMARY KEY,
+      fallback_contact_type TEXT CHECK (fallback_contact_type IN ('line','phone','wechat','none')),
+      fallback_contact_value TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }

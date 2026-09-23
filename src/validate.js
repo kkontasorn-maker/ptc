@@ -1,4 +1,4 @@
-import { ValidationError } from './errors.js';
+import { UnprocessableError, ValidationError } from './errors.js';
 import { parseDate, parseDateTime } from './time.js';
 
 function requireObject(body) {
@@ -454,4 +454,29 @@ export function validateAvailabilityPatch(body, existing, timeZone) {
   const range = readRange(startValue, endValue, details, timeZone);
   if (details.length) fail(details);
   return range;
+}
+
+const FALLBACK_TYPES = new Set(['line', 'phone', 'wechat', 'none']);
+
+export function validateContactPreference(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['email', 'fallback_contact_type', 'fallback_contact_value']);
+  const email = normalizeEmail(data.email);
+  const type = typeof data.fallback_contact_type === 'string'
+    ? data.fallback_contact_type.trim()
+    : '';
+  if (!FALLBACK_TYPES.has(type)) {
+    throw new UnprocessableError('Fallback contact type must be line, phone, wechat, or none.');
+  }
+  const rawValue = data.fallback_contact_value == null ? '' : String(data.fallback_contact_value).trim();
+  if (type === 'none') {
+    return { email, fallback_contact_type: type, fallback_contact_value: null };
+  }
+  if (!rawValue) {
+    throw new UnprocessableError('Enter a fallback contact.');
+  }
+  if (rawValue.length > 200) {
+    throw new UnprocessableError('Fallback contact must be 200 characters or fewer.');
+  }
+  return { email, fallback_contact_type: type, fallback_contact_value: rawValue };
 }

@@ -111,3 +111,32 @@ CREATE TABLE booking_conflict_log (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX idx_booking_conflict_log_booking ON booking_conflict_log(booking_id);
+
+-- Delivery tracking for every outbound email (§5.12) — one row per send
+-- attempt through the shared mail function (§5.10), updated by an ESP
+-- webhook (or left at 'sent'/'unknown' if no webhook-capable ESP is in use).
+CREATE TABLE email_deliveries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  recipient_email TEXT NOT NULL,
+  purpose TEXT NOT NULL CHECK (purpose IN
+    ('verification_code','booking_confirmation','summary','conflict_notification')),
+  related_id INTEGER,               -- booking_id / event_id / booking_conflict_log.id, depending on purpose; nullable
+  provider_message_id TEXT,         -- id returned by the ESP at send time, matched against webhook callbacks
+  status TEXT NOT NULL DEFAULT 'sent'
+    CHECK (status IN ('sent','delivered','bounced','complained','unknown')),
+  status_detail TEXT,               -- bounce/complaint reason from the ESP, nullable
+  sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+  status_updated_at TEXT
+);
+CREATE INDEX idx_email_deliveries_recipient ON email_deliveries(recipient_email);
+CREATE INDEX idx_email_deliveries_status ON email_deliveries(status);
+
+-- Optional fallback contact a parent can register during pre-validation
+-- (§5.8) or any later visit, for the front office to use when email is
+-- unreliable for that family (§5.12). One row per email; upsert on write.
+CREATE TABLE parent_contact_preferences (
+  email TEXT PRIMARY KEY,
+  fallback_contact_type TEXT CHECK (fallback_contact_type IN ('line','phone','wechat','none')),
+  fallback_contact_value TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
