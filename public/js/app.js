@@ -888,7 +888,7 @@ function AvailabilityPanel({ event, user, timeZone }) {
       </div>
     </form>` : null}
     ${loading ? html`<p className="muted">Loading availability…</p>` : null}
-    {!loading && blocks.length === 0 ? html`<div className="card"><p>No availability yet for this teacher.</p></div>` : null}
+    ${!loading && blocks.length === 0 ? html`<div className="card"><p>No availability yet for this teacher.</p></div>` : null}
     <div className="list">
       ${blocks.map((block) => html`<article key=${block.id} className=${cx('card', block.block_type === 'break' && 'block-break')}>
         <div className="staff-line">
