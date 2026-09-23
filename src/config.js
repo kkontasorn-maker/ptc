@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseEmailAllowlist } from './mail/mailer.js';
 
 export const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -80,6 +81,7 @@ export function loadConfig() {
       user: process.env.SMTP_USER || '',
       pass: process.env.SMTP_PASS || '',
       from: process.env.SMTP_FROM || 'conferences@nis.ac.th',
+      allowlist: parseEmailAllowlist(process.env.EMAIL_ALLOWLIST),
     },
     exposeDevCode: process.env.NODE_ENV !== 'production'
       && !process.env.SMTP_HOST,

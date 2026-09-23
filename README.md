@@ -33,6 +33,8 @@ Open [Verify your email](http://127.0.0.1:47231/#/verify). This page does not re
 
 Until `SMTP_HOST` is set, and `NODE_ENV` is not `production`, the send-code response includes `dev_code` and the page shows it. The code is also written to the server log. With SMTP configured, the code is emailed and is not returned to the browser.
 
+`EMAIL_ALLOWLIST` is a separate gate from `NODE_ENV` and `ALLOW_LOCAL_AUTH`. Copy it from `.env.example` and export it before `npm start` (this server does not load `.env` by itself). While it is set, verification codes and summary mail for anyone not on the list are redirected to the first address, with the real recipient and original subject prepended. Unset it only for a real pilot or production deploy.
+
 ```bash
 curl -s -D - -X POST http://127.0.0.1:47231/api/v1/auth/verification-codes \
   -H 'Content-Type: application/json' \
@@ -119,7 +121,7 @@ Sign in as `front.office@nis.ac.th` and open a conference, then **Bookings**. Th
 
 When `cutoff_at` is in the past and `summary_sent_at` is empty, the server emails each parent who still has a confirmed booking. One message lists that parent's meetings: teacher, time, and room (`room_override`, otherwise the PowerSchool room, otherwise `NIS Elementary Building`). Cancelled rows are left out. `summary_sent_at` is set when the batch is claimed, so a later check does not send again. If sending fails before any message goes out, the claim is cleared and the next check tries again.
 
-`node server.js` runs that check at startup and then every 60 seconds. Set `SUMMARY_INTERVAL_MS=0` to run only at startup. Without `SMTP_HOST`, the message is written to the server log instead of emailed, and the event is still marked sent.
+`node server.js` runs that check at startup and then every 60 seconds. Set `SUMMARY_INTERVAL_MS=0` to run only at startup. Without `SMTP_HOST`, the message is written to the server log instead of emailed, and the event is still marked sent. The same `EMAIL_ALLOWLIST` gate applies before that log or SMTP send.
 
 ## Not in this slice
 

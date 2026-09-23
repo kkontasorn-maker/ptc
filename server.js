@@ -16,6 +16,9 @@ const server = app.listen(config.port, config.host, () => {
   console.log(config.mail.configured
     ? 'Verification email: SMTP'
     : 'Verification email: codes logged on the server (SMTP is not configured)');
+  console.log(config.mail.allowlist
+    ? `Email allowlist: on, non-matches redirect to ${config.mail.allowlist[0]}`
+    : 'Email allowlist: off (EMAIL_ALLOWLIST is unset — real recipients)');
   const every = Number.isFinite(config.summaryIntervalMs) && config.summaryIntervalMs > 0
     ? `then every ${Math.round(config.summaryIntervalMs / 1000)} seconds`
     : 'then not again until the next restart';
