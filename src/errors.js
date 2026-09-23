@@ -49,3 +49,25 @@ export class PsapiError extends HttpError {
     super(502, 'PSAPI', message);
   }
 }
+
+export class RateLimitError extends HttpError {
+  constructor(message = 'Too many codes were sent for this email. Try again later.') {
+    super(429, 'RATE_LIMIT', message);
+  }
+}
+
+export class NoStudentMatchError extends HttpError {
+  constructor() {
+    super(
+      404,
+      'NO_STUDENT_MATCH',
+      "We couldn't match this email to a student. Please contact the front office.",
+    );
+  }
+}
+
+export class MailError extends HttpError {
+  constructor() {
+    super(502, 'MAIL', 'The verification email could not be sent');
+  }
+}

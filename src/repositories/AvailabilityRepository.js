@@ -24,6 +24,11 @@ export class AvailabilityRepository {
       VALUES (@staff_id, @event_id, @start_time, @end_time, @block_type)
     `);
     this.deleteStmt = db.prepare('DELETE FROM availability_blocks WHERE id = ?');
+    this.bookableForEventStmt = db.prepare(`
+      SELECT * FROM availability_blocks
+      WHERE event_id = ? AND block_type = 'bookable'
+      ORDER BY staff_id ASC, start_time ASC, id ASC
+    `);
     this.overlapStmt = db.prepare(`
       SELECT COUNT(*) AS n FROM bookings
       WHERE staff_id = ?
@@ -36,6 +41,10 @@ export class AvailabilityRepository {
 
   listForStaffEvent(eventId, staffId) {
     return this.listStmt.all(eventId, staffId).map(mapBlock);
+  }
+
+  listBookableForEvent(eventId) {
+    return this.bookableForEventStmt.all(eventId).map(mapBlock);
   }
 
   findById(id) {

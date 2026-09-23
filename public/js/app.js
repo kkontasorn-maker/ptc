@@ -107,6 +107,7 @@ function parseRoute(hash) {
   const query = new URLSearchParams(queryPart || '');
   const parts = (pathPart || '/events').split('/').filter(Boolean);
   const error = query.get('error');
+  if (parts[0] === 'verify') return { name: 'verify' };
   if (parts[0] === 'sign-in') return { name: 'sign-in', error };
   if (parts[0] === 'staff') {
     return parts[1] ? { name: 'staff-edit', id: parts[1] } : { name: 'staff' };
@@ -132,8 +133,8 @@ function useRoute() {
   return parseRoute(hash);
 }
 
-function Logo() {
-  return html`<a className="logo" href="#/events">
+function Logo({ href = '#/events' }) {
+  return html`<a className="logo" href=${href}>
     <svg className="logo-mark" viewBox="0 0 48 48" aria-hidden="true">
       <path fill="#8C0E06" fillRule="evenodd" d="M24 4 44 44h-8l-3-8H15l-3 8H4L24 4Zm0 16-4.6 12h9.2L24 20Z" />
     </svg>
@@ -261,6 +262,140 @@ function SignIn({ auth, notice, onSignedIn }) {
             <button className=${googlePrimary ? 'btn btn-secondary' : 'btn btn-primary'} type="submit" disabled=${busy}>${busy ? 'Signing in…' : 'Sign in'}</button>
           </form>` : null}
           ${!auth.google && !auth.local ? html`<div className="note">Sign-in is not configured. Set Google credentials or enable local sign-in.</div>` : null}
+          <p className="muted quiet-link"><a href="#/verify">Verify your email</a></p>
+        </div>
+      </div>
+    </main>
+  </div>`;
+}
+
+function VerifyEmailScreen() {
+  const [step, setStep] = useState('email');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [devCode, setDevCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [children, setChildren] = useState(null);
+  const [unmatched, setUnmatched] = useState(false);
+
+  function reset() {
+    setStep('email');
+    setCode('');
+    setDevCode('');
+    setError('');
+    setChildren(null);
+    setUnmatched(false);
+  }
+
+  async function loadChildren(address) {
+    const data = await api(`/parents/me/children?email=${encodeURIComponent(address)}`, { allow401: true });
+    setChildren(data.children || []);
+    setUnmatched(false);
+    setStep('done');
+  }
+
+  async function continueEmail(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    setDevCode('');
+    const address = email.trim();
+    try {
+      const status = await api(`/auth/device-status?email=${encodeURIComponent(address)}`, { allow401: true });
+      if (status.verified) {
+        await loadChildren(address);
+        return;
+      }
+      const sent = await api('/auth/verification-codes', {
+        method: 'POST',
+        body: { email: address },
+        allow401: true,
+      });
+      setDevCode(sent.dev_code || '');
+      setStep('code');
+    } catch (err) {
+      if (err.code === 'NO_STUDENT_MATCH') {
+        setUnmatched(true);
+        setChildren(null);
+        setStep('done');
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmCode(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    const address = email.trim();
+    try {
+      await api('/auth/verification-codes/confirm', {
+        method: 'POST',
+        body: { email: address, code: code.trim() },
+        allow401: true,
+      });
+      await loadChildren(address);
+    } catch (err) {
+      if (err.code === 'NO_STUDENT_MATCH') {
+        setUnmatched(true);
+        setChildren(null);
+        setStep('done');
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const childRows = children || [];
+
+  return html`<div>
+    <header className="app-header"><${Logo} href="#/verify" /></header>
+    <main className="main">
+      <div className="signin">
+        <div className="screen-head">
+          <div>
+            <h1>Verify your email</h1>
+            <p className="lede">We'll match this address to your children in the school records. You can do this before conferences open.</p>
+          </div>
+        </div>
+        <div className="stack">
+          ${error ? html`<div className="note">${error}</div>` : null}
+          ${step === 'email' ? html`<form className="card form" onSubmit=${continueEmail}>
+            <label className="field">
+              <span className="field-label">Email</span>
+              <input className="input" type="email" name="email" autoComplete="email" required value=${email} placeholder="name@example.com" onInput=${(event) => setEmail(event.target.value)} />
+            </label>
+            <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Checking…' : 'Continue'}</button>
+          </form>` : null}
+          ${step === 'code' ? html`<form className="card form" onSubmit=${confirmCode}>
+            <p className="muted">Enter the 6-digit code sent to ${email.trim()}. It expires in 10 minutes.</p>
+            <label className="field">
+              <span className="field-label">Code</span>
+              <input className="input" name="code" inputMode="numeric" autoComplete="one-time-code" required maxLength="6" pattern="[0-9]{6}" value=${code} onInput=${(event) => setCode(event.target.value)} />
+              ${devCode ? html`<span className="field-hint">Mail is not configured on this server. Your code is ${devCode}.</span>` : null}
+            </label>
+            <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Checking…' : 'Verify'}</button>
+            <button className="btn btn-secondary" type="button" onClick=${reset}>Use a different email</button>
+          </form>` : null}
+          ${step === 'done' && unmatched ? html`<div className="card">
+            <p>We couldn't match this email to a student. Please contact the front office.</p>
+            <button className="btn btn-secondary section-gap" type="button" onClick=${reset}>Use a different email</button>
+          </div>` : null}
+          ${step === 'done' && !unmatched ? html`<div className="card">
+            <div><span className="success-note">We found your children</span></div>
+            ${childRows.map((child) => html`<div className="data-row" key=${child.student_powerschool_id}>
+              <div className="data-label">${child.grade ? `Grade ${child.grade}` : 'Grade not set'}</div>
+              <div className="data-value">${child.name}${child.nickname ? ` (${child.nickname})` : ''}</div>
+            </div>`)}
+            <button className="btn btn-secondary section-gap" type="button" onClick=${reset}>Use a different email</button>
+          </div>` : null}
+          <p className="muted quiet-link"><a href="#/sign-in">Staff sign-in</a></p>
         </div>
       </div>
     </main>
@@ -1132,6 +1267,7 @@ function App() {
       staff: 'Staff',
       'staff-edit': 'Staff',
       'sign-in': 'Sign in',
+      verify: 'Verify your email',
     };
     document.title = `${titles[route.name] || 'Conferences'} — Nakornpayap International School`;
   }, [route.name]);
@@ -1141,6 +1277,8 @@ function App() {
     setUser(null);
     window.location.hash = '#/sign-in';
   }
+
+  if (route.name === 'verify') return html`<${VerifyEmailScreen} />`;
 
   if (user === undefined) {
     return html`<div>

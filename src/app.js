@@ -10,11 +10,15 @@ import { EventRepository } from './repositories/EventRepository.js';
 import { ServiceRepository } from './repositories/ServiceRepository.js';
 import { StaffRepository } from './repositories/StaffRepository.js';
 import { AvailabilityRepository } from './repositories/AvailabilityRepository.js';
+import { BookingRepository } from './repositories/BookingRepository.js';
+import { VerificationRepository } from './repositories/VerificationRepository.js';
 import { createAuthRoutes } from './routes/auth.js';
 import { createEventRoutes } from './routes/events.js';
 import { createServiceRoutes } from './routes/services.js';
 import { createStaffRoutes } from './routes/staff.js';
 import { createAvailabilityRoutes } from './routes/availability.js';
+import { createVerificationRoutes } from './routes/verification.js';
+import { createParentRoutes } from './routes/parents.js';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -61,6 +65,8 @@ export function createApp(config) {
     services: new ServiceRepository(db),
     staff: new StaffRepository(db),
     availability: new AvailabilityRepository(db),
+    bookings: new BookingRepository(db),
+    verifications: new VerificationRepository(db),
   };
   const psapi = config.psapiClient || createPsapiClient(config.psapi);
 
@@ -86,6 +92,12 @@ export function createApp(config) {
   });
   api.use(rejectCrossSiteMutation);
   api.use('/auth', createAuthRoutes(config));
+  api.use('/auth', createVerificationRoutes({
+    verifications: repos.verifications,
+    mail: config.mail || { configured: false },
+    exposeDevCode: Boolean(config.exposeDevCode),
+  }));
+  api.use(createParentRoutes({ repos, psapi, timeZone: config.timeZone }));
   api.use(createEventRoutes({ repos, timeZone: config.timeZone }));
   api.use(createServiceRoutes({ repos }));
   api.use(createStaffRoutes({ repos, psapi }));

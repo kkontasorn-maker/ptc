@@ -5,7 +5,10 @@ import path from 'node:path';
 import { describe, test } from 'node:test';
 import { projectRoot } from '../src/config.js';
 import { openDatabase } from '../src/db.js';
-import { mapTeacherPayload } from '../src/psapi/client.js';
+import { createPsapiClient, mapGuardianStudents, mapTeacherPayload } from '../src/psapi/client.js';
+import { PsapiError } from '../src/errors.js';
+import { chunkSlots } from '../src/slots.js';
+import { verificationPayload } from '../src/mail/mailer.js';
 import { StaffRepository } from '../src/repositories/StaffRepository.js';
 import { mergeStaff } from '../src/staff-merge.js';
 import {
@@ -116,5 +119,78 @@ describe('staff sync overrides', () => {
     assert.equal(merged.find((member) => member.powerschool_teacher_id === 'T1').display_name, 'Custom');
     assert.equal(merged.find((member) => member.powerschool_teacher_id === 'T2').synced, false);
     db.close();
+  });
+});
+
+describe('guardian mapping and slots', () => {
+  test('keeps students for the requested guardian email', () => {
+    const students = mapGuardianStudents({
+      record: [
+        {
+          guardian_email: 'Parent@NIS.ac.th',
+          tables: {
+            students: {
+              id: 501,
+              first_name: 'Niran',
+              last_name: 'Srisuk',
+              nickname: 'Nin',
+              grade_level: 5,
+              sections: [{ teacherid: 1001, room: '204' }, { teacherid: 1001, room: '204' }],
+            },
+          },
+        },
+        {
+          guardian_email: 'other@example.com',
+          students: { id: 9, name: 'Other Child', grade: '1', teachers: [] },
+        },
+      ],
+    }, 'parent@nis.ac.th');
+    assert.deepEqual(students, [{
+      student_powerschool_id: '501',
+      name: 'Niran Srisuk',
+      nickname: 'Nin',
+      grade: '5',
+      teachers: [{ powerschool_teacher_id: '1001', room: '204' }],
+    }]);
+  });
+
+  test('uses the mock guardian list only when credentials are absent', async () => {
+    const mock = createPsapiClient({});
+    const first = await mock.studentsForGuardian('Parent@NIS.ac.th');
+    assert.equal(first.source, 'mock');
+    assert.equal(first.students.length, 2);
+    first.students[0].name = 'Changed';
+    const second = await mock.studentsForGuardian('parent@nis.ac.th');
+    assert.equal(second.students[0].name, 'Niran Srisuk');
+    assert.deepEqual(await mock.studentsForGuardian('nobody@example.com'), { source: 'mock', students: [] });
+
+    const live = createPsapiClient({
+      baseUrl: 'https://ps.example',
+      clientId: 'id',
+      clientSecret: 'secret',
+      studentsPath: '/students',
+      fetchImpl: async (url) => {
+        if (String(url).includes('access_token')) {
+          return { ok: true, json: async () => ({ access_token: 'token' }) };
+        }
+        return { ok: false, status: 500, json: async () => ({}) };
+      },
+    });
+    await assert.rejects(() => live.studentsForGuardian('parent@nis.ac.th'), PsapiError);
+  });
+
+  test('chunks bookable time and leaves break overlap in place', () => {
+    const slots = chunkSlots([
+      { block_type: 'bookable', start_time: '2026-10-23T08:00:00+07:00', end_time: '2026-10-23T09:10:00+07:00' },
+      { block_type: 'break', start_time: '2026-10-23T08:00:00+07:00', end_time: '2026-10-23T08:30:00+07:00' },
+    ], 30, [
+      { start_time: '2026-10-23T08:00:00+07:00', end_time: '2026-10-23T08:30:00+07:00' },
+    ], 'Asia/Bangkok');
+    assert.deepEqual(slots, [
+      { start_time: '2026-10-23T08:00:00+07:00', end_time: '2026-10-23T08:30:00+07:00', available: false },
+      { start_time: '2026-10-23T08:30:00+07:00', end_time: '2026-10-23T09:00:00+07:00', available: true },
+    ]);
+    assert.equal(verificationPayload({ exposeDevCode: false, code: '123456' }).dev_code, undefined);
+    assert.equal(verificationPayload({ exposeDevCode: true, code: '123456' }).dev_code, '123456');
   });
 });

@@ -2,7 +2,9 @@ import crypto from 'node:crypto';
 
 export const SESSION_COOKIE = 'nis_ptc_session';
 export const OAUTH_STATE_COOKIE = 'nis_ptc_oauth_state';
+export const DEVICE_COOKIE = 'nis_ptc_device';
 const SESSION_MS = 12 * 60 * 60 * 1000;
+export const DEVICE_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 
 export function parseCookies(header) {
   const cookies = {};
@@ -96,4 +98,21 @@ export function setOauthStateCookie(res, token, options) {
 
 export function clearOauthStateCookie(res, options) {
   res.clearCookie(OAUTH_STATE_COOKIE, cookieBase(options));
+}
+
+export function readDeviceToken(header) {
+  const token = parseCookies(header)[DEVICE_COOKIE];
+  return typeof token === 'string' && token ? token : null;
+}
+
+// The device token is a credential. httpOnly keeps it out of page scripts.
+// secure is always on (§5.4), including when the staff session cookie is not.
+export function setDeviceCookie(res, token) {
+  res.cookie(DEVICE_COOKIE, token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: DEVICE_MAX_AGE_MS,
+  });
 }

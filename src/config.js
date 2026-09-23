@@ -70,6 +70,18 @@ export function loadConfig() {
       clientId: process.env.PSAPI_CLIENT_ID || '',
       clientSecret: process.env.PSAPI_CLIENT_SECRET || '',
       teachersPath: process.env.PSAPI_TEACHERS_PATH || '/ws/schema/table/teachers',
+      studentsPath: process.env.PSAPI_STUDENTS_PATH || '/ws/schema/table/students',
     },
+    mail: {
+      configured: Boolean(process.env.SMTP_HOST && process.env.SMTP_HOST.trim()),
+      host: process.env.SMTP_HOST || '',
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || '',
+      from: process.env.SMTP_FROM || 'conferences@nis.ac.th',
+    },
+    exposeDevCode: process.env.NODE_ENV !== 'production'
+      && !process.env.SMTP_HOST,
   };
 }

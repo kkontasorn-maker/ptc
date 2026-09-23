@@ -262,6 +262,49 @@ export function validateAvailabilityCreate(body, timeZone) {
   return { ...range, block_type: blockType };
 }
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function normalizeEmail(value, field = 'email') {
+  if (Array.isArray(value)) {
+    throw new ValidationError('Email must be a single address', [{
+      field,
+      message: 'Email must be a single address',
+    }]);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new ValidationError('Email is required', [{ field, message: 'Email is required' }]);
+  }
+  const email = value.trim().toLowerCase();
+  if (email.length > 254 || !EMAIL.test(email)) {
+    throw new ValidationError('Enter a valid email address', [{
+      field,
+      message: 'Enter a valid email address',
+    }]);
+  }
+  return email;
+}
+
+export function validateVerificationRequest(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['email']);
+  return { email: normalizeEmail(data.email) };
+}
+
+export function validateVerificationConfirm(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['email', 'code']);
+  const email = normalizeEmail(data.email);
+  const details = [];
+  let code;
+  if (typeof data.code !== 'string' || !/^\d{6}$/.test(data.code.trim())) {
+    details.push({ field: 'code', message: 'Enter the 6-digit code' });
+  } else {
+    code = data.code.trim();
+  }
+  if (details.length) fail(details);
+  return { email, code };
+}
+
 export function validateAvailabilityPatch(body, existing, timeZone) {
   const data = requireObject(body);
   assertAllowed(data, ['start_time', 'end_time']);

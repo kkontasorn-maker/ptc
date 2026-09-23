@@ -2,7 +2,7 @@
   "name": "nis-ptc",
   "version": "0.1.0",
   "private": true,
-  "description": "Nakornpayap International School parent-teacher conferences. Phase 1 is the admin core.",
+  "description": "Nakornpayap International School parent-teacher conferences.",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "nodemailer": "^7.0.13"
   }
 }

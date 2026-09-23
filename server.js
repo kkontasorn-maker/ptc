@@ -12,6 +12,9 @@ const server = app.listen(config.port, config.host, () => {
   console.log(config.google.configured
     ? 'Sign-in: Google Workspace'
     : 'Sign-in: local email fallback (Google OAuth is not configured)');
+  console.log(config.mail.configured
+    ? 'Verification email: SMTP'
+    : 'Verification email: codes logged on the server (SMTP is not configured)');
 });
 
 function shutdown() {

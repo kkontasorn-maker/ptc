@@ -2,7 +2,7 @@
 
 Admin core for Nakornpayap International School parent-teacher conferences. IT sets up a conference, assigns teachers to services, and opens booking when the schedule is ready. Parents do not see a conference until it is open.
 
-This slice is Phase 1 only: events, services, staff, and availability. The parent booking flow, teacher self-service calendar, and landing-page editor are not in this server.
+This server has the admin core (events, services, staff, availability) and the parent identity layer: email codes, a trusted-device cookie, child lookup, and the event parent view. The booking form, teacher self-service calendar, and landing-page editor are not in this server.
 
 ## Run
 
@@ -25,7 +25,28 @@ Sign in with an email from `config/roles.json`. The server assigns the role. The
 
 Google Workspace sign-in is used when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set. Until then, the email form above is the local fallback and does not check a password. Set `ALLOW_LOCAL_AUTH=false` once Google is configured.
 
-PowerSchool teacher sync uses the built-in stand-in list until `PSAPI_BASE_URL`, `PSAPI_CLIENT_ID`, and `PSAPI_CLIENT_SECRET` are set. See `.env.example`.
+PowerSchool teacher sync and guardian lookup use the built-in stand-in lists until `PSAPI_BASE_URL`, `PSAPI_CLIENT_ID`, and `PSAPI_CLIENT_SECRET` are set. The stand-in guardian is `parent@nis.ac.th` (Niran Srisuk, grade 5, and Malee Srisuk, grade 2). See `.env.example`.
+
+## Verify an email
+
+Open [Verify your email](http://127.0.0.1:47231/#/verify). This page does not require a staff sign-in and does not require a conference to be open.
+
+Until `SMTP_HOST` is set, and `NODE_ENV` is not `production`, the send-code response includes `dev_code` and the page shows it. The code is also written to the server log. With SMTP configured, the code is emailed and is not returned to the browser.
+
+```bash
+curl -s -D - -X POST http://127.0.0.1:47231/api/v1/auth/verification-codes \
+  -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"email":"parent@nis.ac.th"}'
+```
+
+Confirm with `POST /api/v1/auth/verification-codes/confirm` and `{ "email", "code" }`. The response sets `nis_ptc_device` (`HttpOnly`, `Secure`, 180 days). Then:
+
+- `GET /api/v1/auth/device-status?email=parent@nis.ac.th`
+- `GET /api/v1/parents/me/children?email=parent@nis.ac.th`
+- `GET /api/v1/events/{id}/parent-view?email=parent@nis.ac.th` once that conference is open for booking
+
+Send is limited to 3 codes per email per hour. A verified address with no PowerSchool guardian match returns `404` `NO_STUDENT_MATCH`. An unpublished conference returns `404` `Event not found` from parent-view, the same body as a missing id.
 
 ```bash
 npm test
@@ -49,14 +70,16 @@ A parent session receives `404 Event not found` for an unpublished conference, t
 
 `display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email is refreshed from PowerSchool.
 
-`room_override` is stored on a staff assignment and is left null. The spec’s assign body is `{ staff_id }` only, so this phase does not edit it.
+Guardian lookups are cached for 5 minutes per email. Slot availability is computed on each parent-view request. `room_override` on a staff assignment replaces the PowerSchool room when it is set. There is still no admin API to edit `room_override`; the assign body remains `{ staff_id }`.
 
-## Not in this phase
+Break blocks are not subtracted from bookable windows. The spec does not define that overlap. A slot is unavailable only when a confirmed booking overlaps it. A remainder shorter than one slot is dropped.
 
-- Parent booking, reschedule, cancel, and the parent-view screen
-- Email verification and trusted devices
+## Not in this slice
+
+- Booking create, reschedule, cancel, and the booking screen
+- `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route
+- Booking lookup and reports
 - Teacher FullCalendar self-service (the availability API already limits teachers to their own rows)
-- Booking reports
 - Custom fields
 - Landing-page sections
 - The post-cutoff summary email
