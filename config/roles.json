@@ -1,0 +1,5 @@
+{
+  "it.admin@nis.ac.th": { "role": "it_admin" },
+  "front.office@nis.ac.th": { "role": "front_office" },
+  "teacher@nis.ac.th": { "role": "teacher", "teacherid": "T1001" }
+}

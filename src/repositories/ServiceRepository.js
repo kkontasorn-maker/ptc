@@ -1,0 +1,71 @@
+function mapService(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    event_id: row.event_id,
+    name: row.name,
+    slot_duration_minutes: row.slot_duration_minutes,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export class ServiceRepository {
+  constructor(db) {
+    this.db = db;
+    this.insertStmt = db.prepare(`
+      INSERT INTO services (event_id, name, slot_duration_minutes)
+      VALUES (@event_id, @name, @slot_duration_minutes)
+    `);
+    this.findStmt = db.prepare('SELECT * FROM services WHERE id = ?');
+    this.listStmt = db.prepare('SELECT * FROM services WHERE event_id = ? ORDER BY id ASC');
+    this.countBookingsStmt = db.prepare('SELECT COUNT(*) AS n FROM bookings WHERE service_id = ?');
+    this.deleteStmt = db.prepare('DELETE FROM services WHERE id = ?');
+  }
+
+  listByEvent(eventId) {
+    return this.listStmt.all(eventId).map(mapService);
+  }
+
+  findById(id) {
+    return mapService(this.findStmt.get(id));
+  }
+
+  create({ event_id, name, slot_duration_minutes }) {
+    const info = this.insertStmt.run({ event_id, name, slot_duration_minutes });
+    return this.findById(Number(info.lastInsertRowid));
+  }
+
+  update(id, fields) {
+    const allowed = ['name', 'slot_duration_minutes'];
+    const sets = [];
+    const params = [];
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(fields, key)) {
+        sets.push(`${key} = ?`);
+        params.push(fields[key]);
+      }
+    }
+    if (sets.length === 0) return this.findById(id);
+    sets.push("updated_at = datetime('now')");
+    params.push(id);
+    const info = this.db.prepare(`UPDATE services SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+    if (info.changes === 0) return null;
+    return this.findById(id);
+  }
+
+  countBookings(serviceId) {
+    // Any booking row blocks deletion, including cancelled.
+    return this.countBookingsStmt.get(serviceId).n;
+  }
+
+  deleteIfNoBookings(id) {
+    return this.db.transaction((serviceId) => {
+      const service = this.findById(serviceId);
+      if (!service) return { missing: true };
+      if (this.countBookings(serviceId) > 0) return { conflict: true };
+      this.deleteStmt.run(serviceId);
+      return { deleted: true };
+    })(id);
+  }
+}
