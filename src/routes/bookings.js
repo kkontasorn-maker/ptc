@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import express from 'express';
+import { rejectFrontOfficeWrite, requireAuth } from '../auth/access.js';
 import { readDeviceToken } from '../auth/session.js';
 import {
   ConflictError,
@@ -12,6 +13,8 @@ import {
 } from '../errors.js';
 import { asyncHandler } from '../http.js';
 import { guardianStudents } from '../psapi/guardian-cache.js';
+import { locationLabel, resolveBookingRooms } from '../booking-rooms.js';
+import { presentEvent } from '../present.js';
 import { formatCutoffMessage, isPastCutoff } from '../time.js';
 import { normalizeEmail, parseRouteId, validateBookingCreate, validateReschedule } from '../validate.js';
 
@@ -74,7 +77,43 @@ function presentBooking(row, { displayName, room }) {
 export function createBookingRoutes({ repos, psapi, timeZone }) {
   const router = express.Router();
 
-  router.post('/bookings', asyncHandler(async (req, res) => {
+  router.get('/events/:eventId/bookings', requireAuth, asyncHandler(async (req, res) => {
+    if (req.user.role !== 'it_admin' && req.user.role !== 'front_office') {
+      throw new ForbiddenError('You do not have access to this action');
+    }
+    const eventId = parseRouteId(req.params.eventId, 'Event id');
+    const event = repos.events.findById(eventId);
+    if (!event) throw new NotFoundError('Event not found');
+    const rows = repos.bookings.listForReport(eventId);
+    const rooms = await resolveBookingRooms(psapi, rows);
+    res.json({
+      event: presentEvent(event, timeZone),
+      bookings: rows.map((row, index) => ({
+        id: row.id,
+        start_time: row.start_time,
+        end_time: row.end_time,
+        status: row.status,
+        booking_batch_id: row.booking_batch_id,
+        student_powerschool_id: row.student_powerschool_id,
+        student_name: row.student_name,
+        student_nickname: row.student_nickname,
+        student_grade: row.student_grade,
+        parent_email: row.parent_email,
+        parent_first_name: row.parent_first_name,
+        parent_last_name: row.parent_last_name,
+        parent_relationship: row.parent_relationship,
+        parent_relationship_other: row.parent_relationship_other,
+        service_id: row.service_id,
+        service_name: row.service_name,
+        staff_id: row.staff_id,
+        display_name: row.display_name,
+        room: rooms[index],
+        location: locationLabel(rooms[index]),
+      })),
+    });
+  }));
+
+  router.post('/bookings', rejectFrontOfficeWrite, asyncHandler(async (req, res) => {
     if (req.body && typeof req.body === 'object' && !Array.isArray(req.body) && typeof req.body.parent_email === 'string') {
       try {
         requireDevice(req, normalizeEmail(req.body.parent_email, 'parent_email'), repos.verifications);
@@ -162,7 +201,7 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
     });
   }));
 
-  router.patch('/bookings/:id/reschedule', asyncHandler(async (req, res) => {
+  router.patch('/bookings/:id/reschedule', rejectFrontOfficeWrite, asyncHandler(async (req, res) => {
     const id = parseRouteId(req.params.id, 'Booking id');
     const next = validateReschedule(req.body, timeZone);
     const booking = repos.bookings.findById(id);
@@ -190,7 +229,7 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
     });
   }));
 
-  router.delete('/bookings/batch/:batchId', asyncHandler(async (req, res) => {
+  router.delete('/bookings/batch/:batchId', rejectFrontOfficeWrite, asyncHandler(async (req, res) => {
     if (!BATCH_ID.test(req.params.batchId || '')) {
       throw new ValidationError('Visit id must be a UUID', [{
         field: 'batchId',
@@ -214,19 +253,19 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
     res.json({ ok: true });
   }));
 
-  router.delete('/bookings/:id', asyncHandler(async (req, res) => {
+  router.delete('/bookings/:id', rejectFrontOfficeWrite, asyncHandler(async (req, res) => {
     const id = parseRouteId(req.params.id, 'Booking id');
     const booking = repos.bookings.findById(id);
     if (!booking) throw new NotFoundError('Booking not found');
     const assignment = repos.staff.findAssignment(booking.staff_id, booking.service_id);
     assertCanChange(req, booking, assignment, repos.verifications);
+    const event = repos.events.findById(booking.event_id);
+    assertOpen(event);
+    assertBeforeCutoff(event, timeZone);
     if (booking.status === 'cancelled') {
       res.json({ ok: true });
       return;
     }
-    const event = repos.events.findById(booking.event_id);
-    assertOpen(event);
-    assertBeforeCutoff(event, timeZone);
     repos.bookings.cancel(id);
     res.json({ ok: true });
   }));

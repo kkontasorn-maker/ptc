@@ -111,10 +111,19 @@ Choose a conference day. The calendar is that day only. Drag a confirmed meeting
 
 `GET /events/:eventId/my-schedule` is teacher-only. The staff row is the session's PowerSchool teacher id. A `staff_id` on the request is ignored. Availability reads and writes still use §4.4 and refuse another teacher's id.
 
+## Booking report
+
+Sign in as `front.office@nis.ac.th` and open a conference, then **Bookings**. The same screen is there for `it.admin@nis.ac.th`. It lists every booking for that conference. Front office cannot change events, services, staff, availability, or bookings; those routes return `403`.
+
+## Summary email
+
+When `cutoff_at` is in the past and `summary_sent_at` is empty, the server emails each parent who still has a confirmed booking. One message lists that parent's meetings: teacher, time, and room (`room_override`, otherwise the PowerSchool room, otherwise `NIS Elementary Building`). Cancelled rows are left out. `summary_sent_at` is set when the batch is claimed, so a later check does not send again. If sending fails before any message goes out, the claim is cleared and the next check tries again.
+
+`node server.js` runs that check at startup and then every 60 seconds. Set `SUMMARY_INTERVAL_MS=0` to run only at startup. Without `SMTP_HOST`, the message is written to the server log instead of emailed, and the event is still marked sent.
+
 ## Not in this slice
 
 - `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route
-- `GET /bookings/lookup` and `GET /events/:eventId/bookings`
+- `GET /bookings/lookup`
 - Custom fields
 - Landing-page sections
-- The post-cutoff summary email

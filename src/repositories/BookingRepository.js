@@ -45,6 +45,20 @@ export class BookingRepository {
       ORDER BY b.start_time ASC, b.id ASC
     `);
     this.findStmt = db.prepare('SELECT * FROM bookings WHERE id = ?');
+    this.reportStmt = db.prepare(`
+      SELECT b.id, b.event_id, b.service_id, b.staff_id, b.start_time, b.end_time,
+             b.booking_batch_id, b.student_powerschool_id, b.student_name,
+             b.student_nickname, b.student_grade, b.parent_email, b.parent_first_name,
+             b.parent_last_name, b.parent_relationship, b.parent_relationship_other,
+             b.status, sv.name AS service_name, s.display_name, s.powerschool_teacher_id,
+             ss.room_override
+      FROM bookings b
+      INNER JOIN services sv ON sv.id = b.service_id
+      INNER JOIN staff s ON s.id = b.staff_id
+      LEFT JOIN staff_services ss ON ss.staff_id = b.staff_id AND ss.service_id = b.service_id
+      WHERE b.event_id = ?
+      ORDER BY b.start_time ASC, b.id ASC
+    `);
     this.listBatchStmt = db.prepare(`
       SELECT * FROM bookings WHERE booking_batch_id = ? ORDER BY start_time ASC, id ASC
     `);
@@ -118,6 +132,32 @@ export class BookingRepository {
   findById(id) {
     const row = this.findStmt.get(id);
     return row ? mapBooking(row) : null;
+  }
+
+  listForReport(eventId) {
+    return this.reportStmt.all(eventId).map((row) => ({
+      id: row.id,
+      event_id: row.event_id,
+      service_id: row.service_id,
+      staff_id: row.staff_id,
+      start_time: row.start_time,
+      end_time: row.end_time,
+      booking_batch_id: row.booking_batch_id,
+      student_powerschool_id: row.student_powerschool_id,
+      student_name: row.student_name,
+      student_nickname: row.student_nickname,
+      student_grade: row.student_grade,
+      parent_email: String(row.parent_email || '').trim().toLowerCase(),
+      parent_first_name: row.parent_first_name,
+      parent_last_name: row.parent_last_name,
+      parent_relationship: row.parent_relationship,
+      parent_relationship_other: row.parent_relationship_other,
+      status: row.status,
+      service_name: row.service_name,
+      display_name: row.display_name,
+      powerschool_teacher_id: row.powerschool_teacher_id,
+      room_override: row.room_override,
+    }));
   }
 
   listByBatch(batchId) {

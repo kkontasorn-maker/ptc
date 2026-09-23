@@ -77,6 +77,7 @@ export function createApp(config) {
   app.set('trust proxy', 1);
   app.locals.db = db;
   app.locals.repos = repos;
+  app.locals.psapi = psapi;
 
   app.use(securityHeaders);
   app.use(express.json({ limit: '64kb' }));

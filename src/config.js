@@ -83,5 +83,8 @@ export function loadConfig() {
     },
     exposeDevCode: process.env.NODE_ENV !== 'production'
       && !process.env.SMTP_HOST,
+    summaryIntervalMs: process.env.SUMMARY_INTERVAL_MS == null || process.env.SUMMARY_INTERVAL_MS === ''
+      ? 60_000
+      : Number(process.env.SUMMARY_INTERVAL_MS),
   };
 }

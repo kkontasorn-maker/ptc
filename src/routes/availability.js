@@ -4,6 +4,7 @@ import {
   assertCanReadAvailability,
   assertCanWriteAvailability,
   assertEventVisible,
+  rejectFrontOfficeWrite,
   requireAuth,
 } from '../auth/access.js';
 import { formatCutoffMessage, isPastCutoff } from '../time.js';
@@ -36,7 +37,7 @@ export function createAvailabilityRoutes({ repos, timeZone }) {
     });
   });
 
-  router.post('/events/:eventId/staff/:staffId/availability', requireAuth, (req, res) => {
+  router.post('/events/:eventId/staff/:staffId/availability', requireAuth, rejectFrontOfficeWrite, (req, res) => {
     const eventId = parseRouteId(req.params.eventId, 'Event id');
     const staffId = parseRouteId(req.params.staffId, 'Staff id');
     const event = assertEventVisible(repos.events.findById(eventId), req.user.role);
@@ -53,7 +54,7 @@ export function createAvailabilityRoutes({ repos, timeZone }) {
     res.status(201).json({ block });
   });
 
-  router.patch('/availability/:id', requireAuth, (req, res) => {
+  router.patch('/availability/:id', requireAuth, rejectFrontOfficeWrite, (req, res) => {
     const id = parseRouteId(req.params.id, 'Availability id');
     const existing = repos.availability.findById(id);
     if (!existing) throw new NotFoundError('Availability block not found');
@@ -68,7 +69,7 @@ export function createAvailabilityRoutes({ repos, timeZone }) {
     res.json({ block });
   });
 
-  router.delete('/availability/:id', requireAuth, (req, res) => {
+  router.delete('/availability/:id', requireAuth, rejectFrontOfficeWrite, (req, res) => {
     const id = parseRouteId(req.params.id, 'Availability id');
     const existing = repos.availability.findById(id);
     if (!existing) throw new NotFoundError('Availability block not found');

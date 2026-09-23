@@ -24,6 +24,16 @@ export class EventRepository {
     this.listStmt = db.prepare('SELECT * FROM events ORDER BY event_date ASC, id ASC');
     this.countBookingsStmt = db.prepare('SELECT COUNT(*) AS n FROM bookings WHERE event_id = ?');
     this.deleteStmt = db.prepare('DELETE FROM events WHERE id = ?');
+    this.claimSummaryStmt = db.prepare(`
+      UPDATE events
+      SET summary_sent_at = datetime('now'), updated_at = datetime('now')
+      WHERE id = ? AND summary_sent_at IS NULL
+    `);
+    this.clearSummaryStmt = db.prepare(`
+      UPDATE events
+      SET summary_sent_at = NULL, updated_at = datetime('now')
+      WHERE id = ?
+    `);
   }
 
   list() {
@@ -61,6 +71,14 @@ export class EventRepository {
     // Any booking row blocks deletion, including cancelled. The spec says
     // "only if no bookings exist" and does not say to ignore cancelled rows.
     return this.countBookingsStmt.get(eventId).n;
+  }
+
+  claimSummary(id) {
+    return this.claimSummaryStmt.run(id).changes === 1;
+  }
+
+  clearSummary(id) {
+    this.clearSummaryStmt.run(id);
   }
 
   deleteIfNoBookings(id) {

@@ -126,6 +126,7 @@ function parseRoute(hash) {
     if (parts[1] === 'new') return { name: 'event-new' };
     if (parts[2] === 'services') return { name: 'services', id: parts[1] };
     if (parts[2] === 'availability') return { name: 'availability', id: parts[1] };
+    if (parts[2] === 'bookings') return { name: 'bookings', id: parts[1] };
     if (!parts[2]) return { name: 'event', id: parts[1] };
   }
   return { name: 'events' };
@@ -225,7 +226,7 @@ function Shell({ user, active, onSignOut, children }) {
 function AccessNote({ user }) {
   if (user.role === 'it_admin') return null;
   const text = user.role === 'front_office'
-    ? 'Front office can review conferences. Changes are limited to IT admin.'
+    ? 'Front office can review conferences and the booking report. Changes are limited to IT admin.'
     : user.role === 'teacher'
       ? 'Your schedule is on Agenda. This screen is read-only.'
       : 'This area is for staff.';
@@ -874,7 +875,7 @@ function NewEventScreen({ user }) {
       <label className="field">
         <span className="field-label">Cutoff</span>
         <input className="input" type="datetime-local" name="cutoff_at" value=${cutoff} onInput=${(event) => setCutoff(event.target.value)} />
-        <span className="field-hint">Optional. After this time, availability changes lock.</span>
+        <span className="field-hint">Optional. After this time, booking and availability changes lock, and each parent gets one summary email.</span>
         ${fields.cutoff_at ? html`<span className="field-error">${fields.cutoff_at}</span>` : null}
       </label>
       <div className="btn-row">
@@ -885,12 +886,54 @@ function NewEventScreen({ user }) {
   </${Shell}>`;
 }
 
-function Subnav({ id, section }) {
+function Subnav({ id, section, user }) {
+  const canReport = user.role === 'it_admin' || user.role === 'front_office';
   return html`<nav className="subnav" aria-label="Conference">
     <a href=${`#/events/${id}`} className=${section === 'details' ? 'active' : ''}>Details</a>
     <a href=${`#/events/${id}/services`} className=${section === 'services' ? 'active' : ''}>Services</a>
     <a href=${`#/events/${id}/availability`} className=${section === 'availability' ? 'active' : ''}>Availability</a>
+    ${canReport ? html`<a href=${`#/events/${id}/bookings`} className=${section === 'bookings' ? 'active' : ''}>Bookings</a>` : null}
   </nav>`;
+}
+
+function BookingsReport({ event }) {
+  const [state, setState] = useState({ loading: true, error: null, bookings: [], summaryAt: event.summary_sent_at });
+  const load = useCallback(() => {
+    setState((current) => ({ ...current, loading: true, error: null }));
+    api(`/events/${event.id}/bookings`)
+      .then((data) => setState({
+        loading: false,
+        error: null,
+        bookings: data.bookings || [],
+        summaryAt: data.event?.summary_sent_at || null,
+      }))
+      .catch((error) => setState({ loading: false, error, bookings: [], summaryAt: null }));
+  }, [event.id]);
+  useEffect(() => { load(); }, [load]);
+
+  return html`<div>
+    <${LockRow} cutoff=${event.cutoff_at} />
+    ${state.summaryAt ? html`<p className="muted section-gap">Summary emailed ${formatWhen(state.summaryAt)}.</p>` : null}
+    ${!state.summaryAt && cutoffPassed(event.cutoff_at) ? html`<p className="muted section-gap">The summary email runs on the server after cutoff. It has not been sent yet.</p>` : null}
+    ${state.loading ? html`<p className="muted section-gap">Loading bookings…</p>` : null}
+    ${state.error ? html`<div className="stack section-gap">
+      <div className="note">${state.error.message}</div>
+      <button type="button" className="btn btn-primary" onClick=${load}>Try again</button>
+    </div>` : null}
+    ${!state.loading && !state.error && state.bookings.length === 0 ? html`<div className="card section-gap"><p>No bookings yet.</p></div>` : null}
+    ${!state.loading && !state.error ? html`<div className="stack section-gap">
+      ${state.bookings.map((booking) => html`<article className="card" key=${booking.id}>
+        <div className="data-row"><div className="data-label">Time</div><div className="data-value">${formatWhen(booking.start_time)}–${formatClock(booking.end_time)}</div></div>
+        <div className="data-row"><div className="data-label">Student</div><div className="data-value">${booking.student_name}${booking.student_nickname ? ` (${booking.student_nickname})` : ''}${booking.student_grade ? `, grade ${booking.student_grade}` : ''}</div></div>
+        <div className="data-row"><div className="data-label">Parent</div><div className="data-value">${[booking.parent_first_name, booking.parent_last_name].filter(Boolean).join(' ') || booking.parent_email}${booking.parent_email && (booking.parent_first_name || booking.parent_last_name) ? ` · ${booking.parent_email}` : ''}</div></div>
+        <div className="data-row"><div className="data-label">Relationship</div><div className="data-value">${relationshipLabel(booking)}</div></div>
+        <div className="data-row"><div className="data-label">Teacher</div><div className="data-value">${booking.display_name}</div></div>
+        <div className="data-row"><div className="data-label">Service</div><div className="data-value">${booking.service_name}</div></div>
+        <div className="data-row"><div className="data-label">Room</div><div className="data-value">${booking.location}</div></div>
+        <div className="data-row"><div className="data-label">Status</div><div className="data-value"><span className="pill">${booking.status === 'cancelled' ? 'Cancelled' : 'Confirmed'}</span></div></div>
+      </article>`)}
+    </div>` : null}
+  </div>`;
 }
 
 function EventWorkspace({ user, eventId, section, timeZone }) {
@@ -929,11 +972,12 @@ function EventWorkspace({ user, eventId, section, timeZone }) {
         <h1>${state.event.name}</h1>
         <${StatusPill} status=${state.event.status} attention=${true} />
       </div>
-      <${Subnav} id=${state.event.id} section=${section} />
+      <${Subnav} id=${state.event.id} section=${section} user=${user} />
       <${AccessNote} user=${user} />
       ${section === 'details' ? html`<${DetailsPanel} event=${state.event} user=${user} timeZone=${timeZone} onSaved=${reload} />` : null}
       ${section === 'services' ? html`<${ServicesPanel} event=${state.event} user=${user} onChange=${reload} />` : null}
       ${section === 'availability' ? html`<${AvailabilityPanel} event=${state.event} user=${user} timeZone=${timeZone} />` : null}
+      ${section === 'bookings' ? html`<${BookingsReport} event=${state.event} />` : null}
     </div>` : null}
   </${Shell}>`;
 }
@@ -1955,6 +1999,7 @@ function App() {
       event: 'Conference',
       services: 'Services',
       availability: 'Availability',
+      bookings: 'Bookings',
       agenda: 'Agenda',
       staff: 'Staff',
       'staff-edit': 'Staff',
@@ -1996,6 +2041,7 @@ function App() {
   if (route.name === 'event') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="details" timeZone=${timeZone} />`;
   if (route.name === 'services') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="services" timeZone=${timeZone} />`;
   if (route.name === 'availability') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="availability" timeZone=${timeZone} />`;
+  if (route.name === 'bookings') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="bookings" timeZone=${timeZone} />`;
   if (route.name === 'staff') return html`<${StaffScreen} user=${user} />`;
   if (route.name === 'staff-edit') return html`<${StaffEditScreen} user=${user} staffId=${route.id} />`;
   return html`<${EventsScreen} user=${user} />`;
