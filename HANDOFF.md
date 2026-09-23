@@ -47,7 +47,7 @@ The teacher page shows a fixed sample event on **16 October 2026**, from **08:00
 
 ### Schedule overview
 
-The admin schedule overview is a read-only teacher-column/time-row grid. Elementary shows five teachers at 15-minute intervals; Middle & High School shows four teachers at 10-minute intervals. The chip filter switches the dataset and time scale. Booked cells use a contained light-gray card, breaks add a diagonal hatch and dashed outline, and open slots remain empty. The screen is intentionally grayscale with no red attention treatment.
+The admin schedule overview is a read-only teacher-column/time-row grid. Elementary shows five teachers at 15-minute intervals; Middle & High School shows four teachers at 10-minute intervals. The service filter uses a neutral outlined active pill, and teacher headers use gray initials avatars. Booked cells use a contained light-gray card, breaks add a diagonal hatch and dashed outline, and open slots remain empty. The screen is intentionally grayscale except for the red mark within the official NIS logo.
 
 ### Parent
 
