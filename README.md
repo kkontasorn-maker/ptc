@@ -2,7 +2,7 @@
 
 Admin core for Nakornpayap International School parent-teacher conferences. IT sets up a conference, assigns teachers to services, and opens booking when the schedule is ready. Parents do not see a conference until it is open.
 
-This server has the admin core, parent email verification, and booking submission. Teacher self-service and the landing-page editor are not in this server.
+This server has the admin core, parent email verification, booking submission, and the teacher agenda. The landing-page editor is not in this server.
 
 ## Run
 
@@ -103,11 +103,18 @@ Guardian lookups are cached for 5 minutes per email. Slot availability is comput
 
 Break blocks are not subtracted from bookable windows. The spec does not define that overlap. A slot is unavailable only when a confirmed booking overlaps it. A remainder shorter than one slot is dropped.
 
+## Teacher agenda
+
+Sign in as `teacher@nis.ac.th`. The form does not ask for a password. The app opens [Agenda](http://127.0.0.1:47231/#/agenda).
+
+Choose a conference day. The calendar is that day only. Drag a confirmed meeting onto another open slot. The move uses the same reschedule check as a parent change: the time has to be a real slot, and after `cutoff_at` the server returns `423` with the lock message. Select a range on the day and press **Block time** to add a break. Breaks are a hatch with a dashed border. The lock row is muted text and a lock icon.
+
+`GET /events/:eventId/my-schedule` is teacher-only. The staff row is the session's PowerSchool teacher id. A `staff_id` on the request is ignored. Availability reads and writes still use §4.4 and refuse another teacher's id.
+
 ## Not in this slice
 
 - `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route
-- `GET /bookings/lookup` and the front-office bookings report
-- Teacher FullCalendar self-service (a teacher session can still reschedule or cancel that teacher's own booking through the API)
+- `GET /bookings/lookup` and `GET /events/:eventId/bookings`
 - Custom fields
 - Landing-page sections
 - The post-cutoff summary email

@@ -19,12 +19,27 @@ export class ServiceRepository {
     `);
     this.findStmt = db.prepare('SELECT * FROM services WHERE id = ?');
     this.listStmt = db.prepare('SELECT * FROM services WHERE event_id = ? ORDER BY id ASC');
+    this.listForStaffEventStmt = db.prepare(`
+      SELECT sv.id, sv.name, sv.slot_duration_minutes
+      FROM services sv
+      INNER JOIN staff_services ss ON ss.service_id = sv.id
+      WHERE sv.event_id = ? AND ss.staff_id = ?
+      ORDER BY sv.id ASC
+    `);
     this.countBookingsStmt = db.prepare('SELECT COUNT(*) AS n FROM bookings WHERE service_id = ?');
     this.deleteStmt = db.prepare('DELETE FROM services WHERE id = ?');
   }
 
   listByEvent(eventId) {
     return this.listStmt.all(eventId).map(mapService);
+  }
+
+  listForStaffEvent(eventId, staffId) {
+    return this.listForStaffEventStmt.all(eventId, staffId).map((row) => ({
+      id: row.id,
+      name: row.name,
+      slot_duration_minutes: row.slot_duration_minutes,
+    }));
   }
 
   findById(id) {

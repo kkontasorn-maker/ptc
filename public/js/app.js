@@ -1,5 +1,5 @@
 const html = htm.bind(React.createElement);
-const { useCallback, useEffect, useMemo, useState } = React;
+const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
 const ROLE_LABEL = {
   it_admin: 'IT admin',
@@ -116,6 +116,7 @@ function parseRoute(hash) {
     };
   }
   if (parts[0] === 'book' && parts[1]) return { name: 'book', id: parts[1] };
+  if (parts[0] === 'agenda') return parts[1] ? { name: 'agenda', id: parts[1] } : { name: 'agenda' };
   if (parts[0] === 'sign-in') return { name: 'sign-in', error };
   if (parts[0] === 'staff') {
     return parts[1] ? { name: 'staff-edit', id: parts[1] } : { name: 'staff' };
@@ -186,11 +187,22 @@ function LockRow({ cutoff, timeZone }) {
   return html`<div className="lock-row">${html`<${IconLock} />`}<span>${cutoffMessage(cutoff, timeZone)}</span></div>`;
 }
 
+function IconAgenda() {
+  return html`<svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M8 8h8M8 12h8M8 16h5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>`;
+}
+
 function Shell({ user, active, onSignOut, children }) {
+  const home = user.role === 'teacher' ? '#/agenda' : '#/events';
   return html`<div>
     <header className="app-header">
-      <${Logo} />
+      <${Logo} href=${home} />
       <nav className="nav" aria-label="Sections">
+        ${user.role === 'teacher' ? html`<a href="#/agenda" className=${active === 'agenda' ? 'active' : ''} aria-current=${active === 'agenda' ? 'page' : undefined}>
+          <${IconAgenda} /> Agenda
+        </a>` : null}
         <a href="#/events" className=${active === 'events' ? 'active' : ''} aria-current=${active === 'events' ? 'page' : undefined}>
           <${IconCalendar} /> Conferences
         </a>
@@ -215,7 +227,7 @@ function AccessNote({ user }) {
   const text = user.role === 'front_office'
     ? 'Front office can review conferences. Changes are limited to IT admin.'
     : user.role === 'teacher'
-      ? 'Teacher self-service is a later step. This screen is read-only.'
+      ? 'Your schedule is on Agenda. This screen is read-only.'
       : 'This area is for staff.';
   return html`<p className="muted">${text}</p>`;
 }
@@ -239,7 +251,7 @@ function SignIn({ auth, notice, onSignedIn }) {
     try {
       const data = await api('/auth/session', { method: 'POST', body: { email } });
       onSignedIn(data);
-      window.location.hash = '#/events';
+      window.location.hash = data.user?.role === 'teacher' ? '#/agenda' : '#/events';
     } catch (err) {
       setError(err.message);
     } finally {
@@ -1576,6 +1588,342 @@ function StaffEditScreen({ user, staffId }) {
   </${Shell}>`;
 }
 
+function addOneDay(iso) {
+  const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
+}
+
+function formatNaive(date) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function durationStamp(minutes) {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}:00`;
+}
+
+function snapFor(services) {
+  if (services.length === 1 && Number.isInteger(services[0].slot_duration_minutes) && services[0].slot_duration_minutes > 0) {
+    return durationStamp(services[0].slot_duration_minutes);
+  }
+  return '00:15:00';
+}
+
+function relationshipLabel(booking) {
+  if (booking.parent_relationship === 'other') return booking.parent_relationship_other || 'Other';
+  const labels = { mother: 'Mother', father: 'Father', guardian: 'Guardian' };
+  return labels[booking.parent_relationship] || 'Not set';
+}
+
+function QuietLock({ message }) {
+  if (!message) return null;
+  return html`<div className="lock-row">${html`<${IconLock} />`}<span>${message}</span></div>`;
+}
+
+function AgendaCalendar({ schedule, locked, onSelectRange, onPick, onChanged, onDropError }) {
+  const host = useRef(null);
+  const handlers = useRef({});
+  handlers.current = { onSelectRange, onPick, onChanged, onDropError };
+
+  useEffect(() => {
+    if (!host.current || typeof FullCalendar === 'undefined') return undefined;
+    const snap = snapFor(schedule.services || []);
+    const events = [];
+    for (const block of schedule.blocks || []) {
+      const isBreak = block.block_type === 'break';
+      events.push({
+        id: `block-${block.id}`,
+        title: isBreak ? 'Break' : 'Bookable',
+        start: block.start_time.slice(0, 19),
+        end: block.end_time.slice(0, 19),
+        classNames: [isBreak ? 'fc-break' : 'fc-bookable'],
+        startEditable: !locked,
+        durationEditable: !locked,
+        extendedProps: { kind: block.block_type, block },
+      });
+    }
+    for (const booking of schedule.bookings || []) {
+      const nickname = booking.student_nickname ? ` (${booking.student_nickname})` : '';
+      events.push({
+        id: `booking-${booking.id}`,
+        title: `${booking.student_name}${nickname}`,
+        start: booking.start_time.slice(0, 19),
+        end: booking.end_time.slice(0, 19),
+        classNames: ['fc-booking'],
+        startEditable: !locked,
+        durationEditable: false,
+        extendedProps: { kind: 'booking', booking },
+      });
+    }
+    const date = schedule.event.event_date;
+    const calendar = new FullCalendar.Calendar(host.current, {
+      initialView: 'timeGridDay',
+      initialDate: date,
+      validRange: { start: date, end: addOneDay(date) },
+      headerToolbar: false,
+      allDaySlot: false,
+      height: 'auto',
+      expandRows: true,
+      slotMinTime: '07:00:00',
+      slotMaxTime: '18:00:00',
+      slotDuration: snap,
+      snapDuration: snap,
+      slotLabelInterval: '01:00:00',
+      editable: !locked,
+      selectable: !locked,
+      selectMirror: true,
+      unselectAuto: true,
+      unselectCancel: '.agenda-side',
+      nowIndicator: true,
+      eventOverlap: true,
+      events,
+      select(info) {
+        handlers.current.onSelectRange({
+          start: formatNaive(info.start),
+          end: formatNaive(info.end),
+        });
+      },
+      eventClick(info) {
+        handlers.current.onPick(info.event.extendedProps);
+      },
+      eventDrop(info) { persist(info); },
+      eventResize(info) { persist(info); },
+    });
+    calendar.render();
+
+    async function persist(info) {
+      const props = info.event.extendedProps;
+      const body = {
+        start_time: formatNaive(info.event.start),
+        end_time: formatNaive(info.event.end),
+      };
+      const path = props.kind === 'booking'
+        ? `/bookings/${props.booking.id}/reschedule`
+        : `/availability/${props.block.id}`;
+      try {
+        await api(path, { method: 'PATCH', body });
+        handlers.current.onChanged();
+      } catch (error) {
+        info.revert();
+        handlers.current.onDropError(error);
+      }
+    }
+
+    return () => calendar.destroy();
+  }, [schedule, locked]);
+
+  return html`<div className=${cx('agenda-calendar', locked && 'is-locked')} ref=${host}></div>`;
+}
+
+function AgendaScreen({ user, eventId, timeZone }) {
+  const id = positiveId(eventId);
+  const [list, setList] = useState({ loading: true, error: null, events: [] });
+  const [schedule, setSchedule] = useState(null);
+  const [loading, setLoading] = useState(Boolean(id));
+  const [error, setError] = useState('');
+  const [selection, setSelection] = useState(null);
+  const [pick, setPick] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [notice, setNotice] = useState('');
+  const [serverLock, setServerLock] = useState('');
+
+  const loadList = useCallback(() => {
+    setList((current) => ({ ...current, loading: true, error: null }));
+    api('/events')
+      .then((data) => setList({ loading: false, error: null, events: data.events || [] }))
+      .catch((err) => setList({ loading: false, error: err, events: [] }));
+  }, []);
+
+  const loadSchedule = useCallback(() => {
+    if (!id) return Promise.resolve();
+    setError('');
+    return api(`/events/${id}/my-schedule`)
+      .then((data) => {
+        setSchedule(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setSchedule(null);
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [id]);
+
+  useEffect(() => {
+    if (user.role !== 'teacher' || id) return undefined;
+    loadList();
+    return undefined;
+  }, [user.role, id, loadList]);
+
+  useEffect(() => {
+    if (user.role !== 'teacher' || !id) return undefined;
+    setSchedule(null);
+    setLoading(true);
+    setSelection(null);
+    setPick(null);
+    setServerLock('');
+    setSuccess('');
+    setNotice('');
+    loadSchedule();
+    return undefined;
+  }, [user.role, id, loadSchedule]);
+
+  if (user.role !== 'teacher') {
+    return html`<${Shell} user=${user} active="agenda">
+      <h1>Agenda</h1>
+      <p className="lede">The agenda is for teachers.</p>
+      <p className="section-gap"><a className="back" href="#/events">Conferences</a></p>
+    </${Shell}>`;
+  }
+
+  if (!id) {
+    const focusId = attentionEventId(list.events);
+    return html`<${Shell} user=${user} active="agenda">
+      <div className="screen-head">
+        <div>
+          <h1>Agenda</h1>
+          <p className="lede">Open a conference day to move meetings and block breaks.</p>
+        </div>
+        ${list.error ? html`<button type="button" className="btn btn-primary" onClick=${loadList}>Try again</button>` : null}
+      </div>
+      <div className="stack">
+        ${list.loading ? html`<p className="muted">Loading conferences…</p>` : null}
+        ${list.error ? html`<div className="note">${list.error.message}</div>` : null}
+        ${!list.loading && !list.error && list.events.length === 0 ? html`<div className="card"><p>No conferences yet.</p></div>` : null}
+        ${!list.loading && !list.error ? html`<div className="list">
+          ${list.events.map((event) => html`<a className="card event-card" href=${`#/agenda/${event.id}`} key=${event.id}>
+            <span className="icon-badge" aria-hidden="true"><${IconAgenda} /></span>
+            <span>
+              <span className="event-title">${event.name}</span>
+              <span className="event-meta">${formatDate(event.event_date)} · ${eventStateLine(event)}</span>
+            </span>
+            <${StatusPill} status=${event.status} attention=${event.id === focusId} />
+          </a>`)}
+        </div>` : null}
+      </div>
+    </${Shell}>`;
+  }
+
+  const lockedMessage = serverLock || (schedule && cutoffPassed(schedule.event.cutoff_at) ? cutoffMessage(schedule.event.cutoff_at, timeZone) : '');
+  const locked = Boolean(lockedMessage);
+
+  async function blockTime() {
+    if (!selection || locked || !schedule) return;
+    setBusy(true);
+    setNotice('');
+    setSuccess('');
+    try {
+      await api(`/events/${schedule.event.id}/staff/${schedule.staff.id}/availability`, {
+        method: 'POST',
+        body: { start_time: selection.start, end_time: selection.end, block_type: 'break' },
+      });
+      setSelection(null);
+      setPick(null);
+      setSuccess('Break saved.');
+      await loadSchedule();
+    } catch (err) {
+      if (err.status === 423) setServerLock(err.message);
+      else setNotice(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeBlock() {
+    if (!pick?.block || locked) return;
+    setBusy(true);
+    setNotice('');
+    setSuccess('');
+    try {
+      await api(`/availability/${pick.block.id}`, { method: 'DELETE' });
+      setPick(null);
+      setSuccess('Block removed.');
+      await loadSchedule();
+    } catch (err) {
+      if (err.status === 423) setServerLock(err.message);
+      else setNotice(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelBooking() {
+    if (!pick?.booking || locked) return;
+    setBusy(true);
+    setNotice('');
+    setSuccess('');
+    try {
+      await api(`/bookings/${pick.booking.id}`, { method: 'DELETE' });
+      setPick(null);
+      setSuccess('Booking cancelled.');
+      await loadSchedule();
+    } catch (err) {
+      if (err.status === 423) setServerLock(err.message);
+      else setNotice(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function onDropError(err) {
+    setSuccess('');
+    if (err.status === 423) {
+      setNotice('');
+      setServerLock(err.message);
+      return;
+    }
+    setNotice(err.message);
+  }
+
+  return html`<${Shell} user=${user} active="agenda">
+    <a className="back" href="#/agenda">Agenda</a>
+    ${loading ? html`<p className="muted section-gap">Loading your day…</p>` : null}
+    ${error ? html`<div className="note section-gap">${error}</div>` : null}
+    ${schedule ? html`<div className="section-gap">
+      <div className="screen-head">
+        <div>
+          <h1>${schedule.event.name}</h1>
+          <p className="lede">${formatDate(schedule.event.event_date)} · ${schedule.staff.display_name}</p>
+        </div>
+      </div>
+      ${locked ? html`<div className="section-gap"><${QuietLock} message=${lockedMessage} /></div>` : null}
+      ${success ? html`<div className="section-gap"><span className="success-note">${success}</span></div>` : null}
+      ${notice ? html`<p className="muted section-gap">${notice}</p>` : null}
+      <div className="agenda-layout section-gap">
+        <${AgendaCalendar}
+          schedule=${schedule}
+          locked=${locked}
+          onSelectRange=${setSelection}
+          onPick=${(next) => { setPick(next); setNotice(''); }}
+          onChanged=${() => { setSuccess('Time updated.'); loadSchedule(); }}
+          onDropError=${onDropError}
+        />
+        <aside className="agenda-side card">
+          <h2>This day</h2>
+          <p className="lede">Drag a meeting onto an open slot. Select a range, then block it for a break.</p>
+          <p className="field-hint">${selection && !locked ? `${formatClock(selection.start)}–${formatClock(selection.end)} selected` : 'Select a range on the day to block a break.'}</p>
+          <button className="btn btn-primary" type="button" disabled=${busy || locked || !selection} onClick=${blockTime}>${busy ? 'Saving…' : 'Block time'}</button>
+          ${pick?.kind === 'booking' ? html`<div className="confirm">
+            <div className="data-row"><div className="data-label">Student</div><div className="data-value">${pick.booking.student_name}${pick.booking.student_nickname ? ` (${pick.booking.student_nickname})` : ''}</div></div>
+            <div className="data-row"><div className="data-label">Grade</div><div className="data-value">${pick.booking.student_grade || 'Not set'}</div></div>
+            <div className="data-row"><div className="data-label">Adult</div><div className="data-value">${relationshipLabel(pick.booking)}</div></div>
+            <div className="data-row"><div className="data-label">Service</div><div className="data-value">${pick.booking.service_name}</div></div>
+            <div className="data-row"><div className="data-label">Time</div><div className="data-value">${formatClock(pick.booking.start_time)}–${formatClock(pick.booking.end_time)}</div></div>
+            <button type="button" className="text-button" disabled=${busy || locked} onClick=${cancelBooking}>Cancel this time</button>
+          </div>` : null}
+          ${pick?.block ? html`<div className="confirm">
+            <div className="data-row"><div className="data-label">Block</div><div className="data-value">${pick.kind === 'break' ? 'Break' : 'Bookable'}</div></div>
+            <div className="data-row"><div className="data-label">Time</div><div className="data-value">${formatClock(pick.block.start_time)}–${formatClock(pick.block.end_time)}</div></div>
+            <button type="button" className="text-button" disabled=${busy || locked} onClick=${removeBlock}>${pick.kind === 'break' ? 'Remove break' : 'Remove this block'}</button>
+          </div>` : null}
+        </aside>
+      </div>
+    </div>` : null}
+  </${Shell}>`;
+}
+
 function App() {
   const route = useRoute();
   const [user, setUser] = useState(undefined);
@@ -1605,6 +1953,7 @@ function App() {
       event: 'Conference',
       services: 'Services',
       availability: 'Availability',
+      agenda: 'Agenda',
       staff: 'Staff',
       'staff-edit': 'Staff',
       'sign-in': 'Sign in',
@@ -1640,6 +1989,7 @@ function App() {
     }} />`;
   }
 
+  if (route.name === 'agenda') return html`<${AgendaScreen} user=${user} eventId=${route.id} timeZone=${timeZone} />`;
   if (route.name === 'event-new') return html`<${NewEventScreen} user=${user} />`;
   if (route.name === 'event') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="details" timeZone=${timeZone} />`;
   if (route.name === 'services') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="services" timeZone=${timeZone} />`;

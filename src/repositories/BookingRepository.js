@@ -35,6 +35,15 @@ export class BookingRepository {
       WHERE event_id = ? AND status = 'confirmed'
       ORDER BY start_time ASC, id ASC
     `);
+    this.confirmedForStaffEventStmt = db.prepare(`
+      SELECT b.id, b.start_time, b.end_time, b.student_name, b.student_nickname,
+             b.student_grade, b.parent_relationship, b.parent_relationship_other,
+             b.service_id, sv.name AS service_name, sv.slot_duration_minutes
+      FROM bookings b
+      INNER JOIN services sv ON sv.id = b.service_id
+      WHERE b.event_id = ? AND b.staff_id = ? AND b.status = 'confirmed'
+      ORDER BY b.start_time ASC, b.id ASC
+    `);
     this.findStmt = db.prepare('SELECT * FROM bookings WHERE id = ?');
     this.listBatchStmt = db.prepare(`
       SELECT * FROM bookings WHERE booking_batch_id = ? ORDER BY start_time ASC, id ASC
@@ -75,6 +84,22 @@ export class BookingRepository {
       SET start_time = ?, end_time = ?, updated_at = datetime('now')
       WHERE id = ? AND status = 'confirmed'
     `);
+  }
+
+  listConfirmedForStaffEvent(eventId, staffId) {
+    return this.confirmedForStaffEventStmt.all(eventId, staffId).map((row) => ({
+      id: row.id,
+      start_time: row.start_time,
+      end_time: row.end_time,
+      student_name: row.student_name,
+      student_nickname: row.student_nickname,
+      student_grade: row.student_grade,
+      parent_relationship: row.parent_relationship,
+      parent_relationship_other: row.parent_relationship_other,
+      service_id: row.service_id,
+      service_name: row.service_name,
+      slot_duration_minutes: row.slot_duration_minutes,
+    }));
   }
 
   listConfirmedForEvent(eventId) {

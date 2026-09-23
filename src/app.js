@@ -17,6 +17,7 @@ import { createEventRoutes } from './routes/events.js';
 import { createServiceRoutes } from './routes/services.js';
 import { createStaffRoutes } from './routes/staff.js';
 import { createAvailabilityRoutes } from './routes/availability.js';
+import { createAgendaRoutes } from './routes/agenda.js';
 import { createVerificationRoutes } from './routes/verification.js';
 import { createParentRoutes } from './routes/parents.js';
 import { createBookingRoutes } from './routes/bookings.js';
@@ -104,6 +105,7 @@ export function createApp(config) {
   api.use(createServiceRoutes({ repos }));
   api.use(createStaffRoutes({ repos, psapi }));
   api.use(createAvailabilityRoutes({ repos, timeZone: config.timeZone }));
+  api.use(createAgendaRoutes({ repos, timeZone: config.timeZone }));
   api.use((req, res) => {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
   });
