@@ -93,6 +93,8 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
         start_time: row.start_time,
         end_time: row.end_time,
         status: row.status,
+        needs_attention: row.needs_attention,
+        conflict_reason: row.conflict_reason,
         booking_batch_id: row.booking_batch_id,
         student_powerschool_id: row.student_powerschool_id,
         student_name: row.student_name,

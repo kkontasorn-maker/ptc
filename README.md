@@ -115,6 +115,8 @@ Choose a conference day. The calendar is that day only. Drag a confirmed meeting
 
 `GET /events/:eventId/my-schedule` is teacher-only. The staff row is the session's PowerSchool teacher id. A `staff_id` on the request is ignored. Availability reads and writes still use §4.4 and refuse another teacher's id.
 
+A break that overlaps confirmed bookings, or unassigning a teacher who still has confirmed bookings, returns `409` with those bookings. Sending `{ confirm_override: true, reason }` goes ahead, flags the bookings for front office, and emails each parent once through the shared mail gate. The email does not include the reason. `notified_at` is set only when SMTP accepts the message.
+
 ## Booking report
 
 Sign in as `front.office@nis.ac.th` and open a conference, then **Bookings**. The same screen is there for `it.admin@nis.ac.th`. It lists every booking for that conference. Front office cannot change events, services, staff, availability, or bookings; those routes return `403`.

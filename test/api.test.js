@@ -144,6 +144,7 @@ describe('admin API', { concurrency: false }, () => {
     `).all().map((row) => row.name);
     assert.deepEqual(tables, [
       'availability_blocks',
+      'booking_conflict_log',
       'bookings',
       'device_verifications',
       'events',
@@ -159,6 +160,7 @@ describe('admin API', { concurrency: false }, () => {
     `).all().map((row) => row.name);
     assert.deepEqual(indexes, [
       'idx_avail_staff_event',
+      'idx_booking_conflict_log_booking',
       'idx_bookings_batch',
       'idx_bookings_email_event',
       'idx_bookings_no_overlap',

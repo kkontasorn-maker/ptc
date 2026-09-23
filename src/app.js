@@ -105,8 +105,8 @@ export function createApp(config) {
   api.use(createBookingRoutes({ repos, psapi, timeZone: config.timeZone }));
   api.use(createEventRoutes({ repos, timeZone: config.timeZone }));
   api.use(createServiceRoutes({ repos }));
-  api.use(createStaffRoutes({ repos, psapi }));
-  api.use(createAvailabilityRoutes({ repos, timeZone: config.timeZone }));
+  api.use(createStaffRoutes({ repos, psapi, mail: config.mail }));
+  api.use(createAvailabilityRoutes({ repos, timeZone: config.timeZone, mail: config.mail }));
   api.use(createAgendaRoutes({ repos, timeZone: config.timeZone }));
   api.use(createIntegrationRoutes({ psapi, timeZone: config.timeZone }));
   api.use((req, res) => {

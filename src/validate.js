@@ -254,7 +254,7 @@ function readRange(startValue, endValue, details, timeZone) {
 
 export function validateAvailabilityCreate(body, timeZone) {
   const data = requireObject(body);
-  assertAllowed(data, ['start_time', 'end_time', 'block_type']);
+  assertAllowed(data, ['start_time', 'end_time', 'block_type', 'confirm_override', 'reason']);
   const details = [];
   const range = readRange(data.start_time, data.end_time, details, timeZone);
   const blockType = readBlockType(data.block_type, details);

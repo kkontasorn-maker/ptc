@@ -33,8 +33,15 @@ export class NotFoundError extends HttpError {
 }
 
 export class ConflictError extends HttpError {
-  constructor(message) {
+  constructor(message, bookings) {
     super(409, 'CONFLICT', message);
+    if (bookings) this.bookings = bookings;
+  }
+}
+
+export class UnprocessableError extends HttpError {
+  constructor(message) {
+    super(422, 'UNPROCESSABLE', message);
   }
 }
 

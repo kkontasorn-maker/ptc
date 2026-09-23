@@ -15,6 +15,7 @@ export function errorHandler(err, req, res, next) {
   if (err instanceof HttpError) {
     const body = { error: { code: err.code, message: err.message } };
     if (err.details) body.error.details = err.details;
+    if (Array.isArray(err.bookings)) body.error.bookings = err.bookings;
     res.status(err.status).json(body);
     return;
   }

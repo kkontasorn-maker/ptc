@@ -79,6 +79,30 @@ export async function sendMail({ mail, to, subject, text, transport }) {
   return { delivered: true, ...gated };
 }
 
+export function conflictNoticeText({ teacherName, combos }) {
+  const lines = [];
+  const seen = new Set();
+  for (const combo of combos) {
+    const key = `${combo.date}\n${combo.student}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    lines.push(
+      `${teacherName}'s availability for your ${combo.date} Parent-Teacher Conference booking with ${combo.student} has changed. Please check the app to reschedule, or contact front office for help.`,
+    );
+  }
+  return lines.join('\n\n');
+}
+
+export async function deliverConflictNotice({ mail, email, teacherName, combos, transport }) {
+  return sendMail({
+    mail,
+    to: email,
+    subject: 'Your Parent-Teacher Conference booking has changed',
+    text: `${conflictNoticeText({ teacherName, combos })}\n`,
+    transport: transport || mail?.transport,
+  });
+}
+
 export async function deliverVerificationCode({ mail, email, code, transport }) {
   const text = `Your NIS conferences code is ${code}. It expires in 10 minutes.`;
   return sendMail({

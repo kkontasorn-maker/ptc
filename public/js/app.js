@@ -978,7 +978,8 @@ function BookingsReport({ event }) {
         <div className="data-row"><div className="data-label">Teacher</div><div className="data-value">${booking.display_name}</div></div>
         <div className="data-row"><div className="data-label">Service</div><div className="data-value">${booking.service_name}</div></div>
         <div className="data-row"><div className="data-label">Room</div><div className="data-value">${booking.location}</div></div>
-        <div className="data-row"><div className="data-label">Status</div><div className="data-value"><span className="pill">${booking.status === 'cancelled' ? 'Cancelled' : 'Confirmed'}</span></div></div>
+        <div className="data-row"><div className="data-label">Status</div><div className="data-value">${booking.needs_attention ? html`<span className="pill attention">Needs attention</span>` : html`<span className="pill">${booking.status === 'cancelled' ? 'Cancelled' : 'Confirmed'}</span>`}</div></div>
+        ${booking.needs_attention && booking.conflict_reason ? html`<div className="data-row"><div className="data-label">Reason</div><div className="data-value">${booking.conflict_reason}</div></div>` : null}
       </article>`)}
     </div>` : null}
   </div>`;

@@ -1,6 +1,16 @@
 import { ConflictError, HttpError, ValidationError } from '../errors.js';
 import { isScheduledSlot } from '../slots.js';
 
+function affectedBooking(row) {
+  return {
+    id: row.id,
+    student_name: row.student_name,
+    parent_email: String(row.parent_email || '').trim().toLowerCase(),
+    start_time: row.start_time,
+    end_time: row.end_time,
+  };
+}
+
 function mapBooking(row) {
   return {
     id: row.id,
@@ -50,8 +60,14 @@ export class BookingRepository {
              b.booking_batch_id, b.student_powerschool_id, b.student_name,
              b.student_nickname, b.student_grade, b.parent_email, b.parent_first_name,
              b.parent_last_name, b.parent_relationship, b.parent_relationship_other,
-             b.status, sv.name AS service_name, s.display_name, s.powerschool_teacher_id,
-             ss.room_override
+             b.status, b.needs_attention, sv.name AS service_name, s.display_name,
+             s.powerschool_teacher_id, ss.room_override,
+             (
+               SELECT reason FROM booking_conflict_log
+               WHERE booking_id = b.id
+               ORDER BY id DESC
+               LIMIT 1
+             ) AS conflict_reason
       FROM bookings b
       INNER JOIN services sv ON sv.id = b.service_id
       INNER JOIN staff s ON s.id = b.staff_id
@@ -85,18 +101,50 @@ export class BookingRepository {
     `);
     this.cancelStmt = db.prepare(`
       UPDATE bookings
-      SET status = 'cancelled', updated_at = datetime('now')
+      SET status = 'cancelled', needs_attention = 0, updated_at = datetime('now')
       WHERE id = ? AND status = 'confirmed'
     `);
     this.cancelBatchStmt = db.prepare(`
       UPDATE bookings
-      SET status = 'cancelled', updated_at = datetime('now')
+      SET status = 'cancelled', needs_attention = 0, updated_at = datetime('now')
       WHERE booking_batch_id = ? AND status = 'confirmed'
     `);
     this.moveStmt = db.prepare(`
       UPDATE bookings
-      SET start_time = ?, end_time = ?, updated_at = datetime('now')
+      SET start_time = ?, end_time = ?, needs_attention = 0, updated_at = datetime('now')
       WHERE id = ? AND status = 'confirmed'
+    `);
+    this.overlapConfirmedStmt = db.prepare(`
+      SELECT id, student_name, parent_email, start_time, end_time
+      FROM bookings
+      WHERE staff_id = ?
+        AND event_id = ?
+        AND status = 'confirmed'
+        AND start_time < ?
+        AND end_time > ?
+      ORDER BY parent_email ASC, start_time ASC, id ASC
+    `);
+    this.serviceConfirmedStmt = db.prepare(`
+      SELECT id, student_name, parent_email, start_time, end_time
+      FROM bookings
+      WHERE staff_id = ?
+        AND service_id = ?
+        AND status = 'confirmed'
+      ORDER BY parent_email ASC, start_time ASC, id ASC
+    `);
+    this.flagStmt = db.prepare(`
+      UPDATE bookings
+      SET needs_attention = 1, updated_at = datetime('now')
+      WHERE id = ? AND status = 'confirmed'
+    `);
+    this.insertConflictStmt = db.prepare(`
+      INSERT INTO booking_conflict_log (booking_id, reason, created_by)
+      VALUES (?, ?, ?)
+    `);
+    this.markNotifiedStmt = db.prepare(`
+      UPDATE booking_conflict_log
+      SET notified_at = datetime('now')
+      WHERE id = ? AND notified_at IS NULL
     `);
   }
 
@@ -153,6 +201,8 @@ export class BookingRepository {
       parent_relationship: row.parent_relationship,
       parent_relationship_other: row.parent_relationship_other,
       status: row.status,
+      needs_attention: Boolean(row.needs_attention),
+      conflict_reason: row.conflict_reason || null,
       service_name: row.service_name,
       display_name: row.display_name,
       powerschool_teacher_id: row.powerschool_teacher_id,
@@ -162,6 +212,34 @@ export class BookingRepository {
 
   listByBatch(batchId) {
     return this.listBatchStmt.all(batchId).map(mapBooking);
+  }
+
+  listConfirmedOverlapping(staffId, eventId, rangeEnd, rangeStart) {
+    return this.overlapConfirmedStmt.all(staffId, eventId, rangeEnd, rangeStart).map(affectedBooking);
+  }
+
+  listConfirmedForStaffService(staffId, serviceId) {
+    return this.serviceConfirmedStmt.all(staffId, serviceId).map(affectedBooking);
+  }
+
+  strandBookings(bookings, { reason, createdBy }) {
+    const run = this.db.transaction(() => {
+      const rows = [];
+      for (const booking of bookings) {
+        this.flagStmt.run(booking.id);
+        const info = this.insertConflictStmt.run(booking.id, reason, createdBy);
+        rows.push({ ...booking, log_id: Number(info.lastInsertRowid) });
+      }
+      return rows;
+    });
+    return run();
+  }
+
+  markConflictNotified(logIds) {
+    const run = this.db.transaction(() => {
+      for (const id of logIds) this.markNotifiedStmt.run(id);
+    });
+    run.immediate();
   }
 
   countOverlap(staffId, rangeEnd, rangeStart, excludeId = -1) {

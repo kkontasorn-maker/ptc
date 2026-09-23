@@ -1,6 +1,7 @@
 import express from 'express';
 import { ConflictError, NotFoundError } from '../errors.js';
 import { requireAuth, requireItAdmin } from '../auth/access.js';
+import { notifyStrandedParents, readConfirmOverride, rejectIfStranded } from '../conflicts.js';
 import { asyncHandler } from '../http.js';
 import { presentMergedStaff, safePhotoUrl } from '../present.js';
 import { mergeStaff } from '../staff-merge.js';
@@ -50,7 +51,7 @@ async function loadPowerschool(psapi) {
   }
 }
 
-export function createStaffRoutes({ repos, psapi }) {
+export function createStaffRoutes({ repos, psapi, mail }) {
   const router = express.Router();
 
   router.get('/staff', requireAuth, asyncHandler(async (req, res) => {
@@ -114,15 +115,44 @@ export function createStaffRoutes({ repos, psapi }) {
     res.status(201).json(result);
   });
 
-  router.delete('/services/:serviceId/staff/:staffId', requireItAdmin, (req, res) => {
+  router.delete('/services/:serviceId/staff/:staffId', requireItAdmin, asyncHandler(async (req, res) => {
     const serviceId = parseRouteId(req.params.serviceId, 'Service id');
     const staffId = parseRouteId(req.params.staffId, 'Staff id');
-    if (!repos.services.findById(serviceId)) throw new NotFoundError('Service not found');
-    if (!repos.staff.findById(staffId)) throw new NotFoundError('Staff not found');
-    const removed = repos.staff.unassign(serviceId, staffId);
-    if (!removed) throw new NotFoundError('That staff member is not assigned to this service');
+    const service = repos.services.findById(serviceId);
+    if (!service) throw new NotFoundError('Service not found');
+    const staff = repos.staff.findById(staffId);
+    if (!staff) throw new NotFoundError('Staff not found');
+    if (!repos.staff.findAssignment(staffId, serviceId)) {
+      throw new NotFoundError('That staff member is not assigned to this service');
+    }
+    const reason = readConfirmOverride(req.body);
+    const affected = repos.bookings.listConfirmedForStaffService(staffId, serviceId);
+    rejectIfStranded(
+      affected,
+      reason,
+      'Confirmed bookings use this teacher on this service',
+    );
+    const event = repos.events.findById(service.event_id);
+    const stranded = repos.bookings.db.transaction(() => {
+      const removed = repos.staff.unassign(serviceId, staffId);
+      if (!removed) throw new NotFoundError('That staff member is not assigned to this service');
+      if (!affected.length) return [];
+      return repos.bookings.strandBookings(affected, {
+        reason,
+        createdBy: req.user.email,
+      });
+    })();
+    if (stranded.length) {
+      await notifyStrandedParents({
+        mail,
+        teacherName: staff.display_name,
+        eventDate: event.event_date,
+        rows: stranded,
+        markNotified: (logIds) => repos.bookings.markConflictNotified(logIds),
+      });
+    }
     res.json({ ok: true });
-  });
+  }));
 
   return router;
 }

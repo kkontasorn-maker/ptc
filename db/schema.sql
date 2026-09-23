@@ -69,6 +69,7 @@ CREATE TABLE bookings (
   parent_relationship_other TEXT,
   status TEXT NOT NULL DEFAULT 'confirmed'
     CHECK (status IN ('confirmed','cancelled')),
+  needs_attention INTEGER NOT NULL DEFAULT 0,  -- set true when a teacher/staff change (§5.11) strands this booking
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -100,3 +101,13 @@ CREATE TABLE device_verifications (
   expires_at TEXT NOT NULL
 );
 CREATE INDEX idx_device_verifications_lookup ON device_verifications(email, device_token);
+
+CREATE TABLE booking_conflict_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  booking_id INTEGER NOT NULL REFERENCES bookings(id),
+  reason TEXT NOT NULL,
+  created_by TEXT NOT NULL,        -- the acting session's email (teacher or it_admin)
+  notified_at TEXT,                -- set only once the parent notification email is CONFIRMED sent — same discipline as events.summary_sent_at (§5.5), never claimed on a console-log fallback
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_booking_conflict_log_booking ON booking_conflict_log(booking_id);

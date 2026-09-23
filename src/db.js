@@ -20,5 +20,24 @@ export function openDatabase(dbPath, schemaPath) {
     const sql = fs.readFileSync(schemaPath, 'utf8');
     db.exec(sql);
   }
+  ensureConflictSchema(db);
   return db;
+}
+
+function ensureConflictSchema(db) {
+  const columns = db.prepare('PRAGMA table_info(bookings)').all();
+  if (!columns.some((column) => column.name === 'needs_attention')) {
+    db.exec('ALTER TABLE bookings ADD COLUMN needs_attention INTEGER NOT NULL DEFAULT 0');
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS booking_conflict_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_id INTEGER NOT NULL REFERENCES bookings(id),
+      reason TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      notified_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_booking_conflict_log_booking ON booking_conflict_log(booking_id);
+  `);
 }
