@@ -121,6 +121,11 @@ export function mapTeacherPayload(payload) {
   return teachers;
 }
 
+function publicPsapiMessage(error) {
+  if (error instanceof PsapiError) return error.message;
+  return 'PowerSchool could not be reached';
+}
+
 async function fetchAccessToken({ baseUrl, clientId, clientSecret, fetchImpl }) {
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
   const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/oauth/access_token`, {
@@ -155,6 +160,30 @@ export function createPsapiClient({
   fetchImpl = fetch,
 } = {}) {
   const configured = Boolean(baseUrl && clientId && clientSecret);
+  const connection = {
+    connected: false,
+    lastSuccessfulCallAt: null,
+    error: null,
+  };
+
+  function connectionStatus() {
+    return {
+      connected: connection.connected,
+      lastSuccessfulCallAt: connection.lastSuccessfulCallAt,
+      error: connection.error,
+    };
+  }
+
+  function recordSuccess(now = new Date()) {
+    connection.connected = true;
+    connection.lastSuccessfulCallAt = now;
+    connection.error = null;
+  }
+
+  function recordFailure(error) {
+    connection.connected = false;
+    connection.error = publicPsapiMessage(error);
+  }
 
   async function listFromPowerSchool() {
     const token = await fetchAccessToken({ baseUrl, clientId, clientSecret, fetchImpl });
@@ -196,8 +225,34 @@ export function createPsapiClient({
     return mapGuardianStudents(await response.json(), email);
   }
 
+  async function probeStudents() {
+    const token = await fetchAccessToken({ baseUrl, clientId, clientSecret, fetchImpl });
+    const url = new URL(studentsPath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
+    url.searchParams.set('pagesize', '1');
+    url.searchParams.set('page', '1');
+    const response = await fetchImpl(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new PsapiError('PowerSchool student request failed');
+    await response.json().catch(() => null);
+  }
+
+  async function remember(run) {
+    try {
+      const result = await run();
+      recordSuccess();
+      return result;
+    } catch (error) {
+      recordFailure(error);
+      if (error instanceof PsapiError) throw error;
+      throw new PsapiError('PowerSchool could not be reached');
+    }
+  }
+
   return {
     configured,
+    connectionStatus,
     async listTeachers() {
       if (!configured) {
         return {
@@ -205,7 +260,7 @@ export function createPsapiClient({
           teachers: MOCK_TEACHERS.map((teacher) => ({ ...teacher })),
         };
       }
-      const teachers = await listFromPowerSchool();
+      const teachers = await remember(listFromPowerSchool);
       return { source: 'powerschool', teachers };
     },
     async studentsForGuardian(email) {
@@ -216,8 +271,22 @@ export function createPsapiClient({
           students: cloneStudents(MOCK_GUARDIANS[key] || []),
         };
       }
-      const students = await studentsFromPowerSchool(key);
+      const students = await remember(() => studentsFromPowerSchool(key));
       return { source: 'powerschool', students };
+    },
+    async testConnection() {
+      if (!configured) {
+        recordFailure(new PsapiError('PowerSchool is not configured'));
+        return connectionStatus();
+      }
+      try {
+        await probeStudents();
+        recordSuccess();
+      } catch (error) {
+        recordFailure(error);
+        console.error('PowerSchool test failed');
+      }
+      return connectionStatus();
     },
   };
 }

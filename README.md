@@ -27,6 +27,8 @@ Google Workspace sign-in is used when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECR
 
 PowerSchool teacher sync and guardian lookup use the built-in stand-in lists until `PSAPI_BASE_URL`, `PSAPI_CLIENT_ID`, and `PSAPI_CLIENT_SECRET` are set. The stand-in guardian is `parent@nis.ac.th` (Niran Srisuk, grade 5, and Malee Srisuk, grade 2). See `.env.example`.
 
+Sign in as `it.admin@nis.ac.th` and open Conferences. The PowerSchool card shows whether the last live call succeeded, and **Test connection** runs one small students query. The page load does not call PowerSchool. Credentials stay in the server environment; the card and the status routes never accept or return them.
+
 ## Verify an email
 
 Open [Verify your email](http://127.0.0.1:47231/#/verify). This page does not require a staff sign-in and does not require a conference to be open.

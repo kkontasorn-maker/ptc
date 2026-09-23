@@ -769,6 +769,53 @@ function eventStateLine(event) {
   return 'Hidden from parents';
 }
 
+function PowerSchoolCard() {
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+
+  const load = useCallback(() => {
+    api('/admin/integrations/powerschool-status')
+      .then((data) => {
+        setStatus(data);
+        setNote('');
+      })
+      .catch((error) => setNote(error.message));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function testConnection() {
+    setBusy(true);
+    setNote('');
+    try {
+      const data = await api('/admin/integrations/powerschool-status/test', { method: 'POST', body: {} });
+      setStatus(data);
+    } catch (error) {
+      setNote(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const connected = Boolean(status?.connected);
+  return html`<article className="card">
+    <div className="title-row">
+      <h2>PowerSchool</h2>
+      <span className="pill">${status ? (connected ? 'Connected' : 'Not connected') : 'Checking…'}</span>
+    </div>
+    <div className="data-row">
+      <div className="data-label">Last successful call</div>
+      <div className="data-value">${status?.last_successful_call_at ? formatWhen(status.last_successful_call_at) : 'None yet'}</div>
+    </div>
+    ${status?.error ? html`<p className="muted section-gap">${status.error}</p>` : null}
+    ${note ? html`<p className="muted section-gap">${note}</p>` : null}
+    <div className="btn-row section-gap">
+      <button type="button" className="btn btn-secondary" disabled=${busy} onClick=${testConnection}>${busy ? 'Testing…' : 'Test connection'}</button>
+    </div>
+  </article>`;
+}
+
 function EventsScreen({ user }) {
   const canWrite = user.role === 'it_admin';
   const [state, setState] = useState({ loading: true, error: null, events: [] });
@@ -805,6 +852,7 @@ function EventsScreen({ user }) {
       ${state.error ? html`<button type="button" className="btn btn-primary" onClick=${load}>Try again</button>` : null}
     </div>
     <div className="stack">
+      ${canWrite ? html`<${PowerSchoolCard} />` : null}
       <${AccessNote} user=${user} />
       ${state.loading ? html`<p className="muted">Loading conferences…</p>` : null}
       ${state.error ? html`<div className="note">${state.error.message}</div>` : null}

@@ -21,6 +21,7 @@ import { createAgendaRoutes } from './routes/agenda.js';
 import { createVerificationRoutes } from './routes/verification.js';
 import { createParentRoutes } from './routes/parents.js';
 import { createBookingRoutes } from './routes/bookings.js';
+import { createIntegrationRoutes } from './routes/integrations.js';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -107,6 +108,7 @@ export function createApp(config) {
   api.use(createStaffRoutes({ repos, psapi }));
   api.use(createAvailabilityRoutes({ repos, timeZone: config.timeZone }));
   api.use(createAgendaRoutes({ repos, timeZone: config.timeZone }));
+  api.use(createIntegrationRoutes({ psapi, timeZone: config.timeZone }));
   api.use((req, res) => {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
   });
