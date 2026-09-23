@@ -1,3 +1,4 @@
 FullCalendar v6.1.19 (MIT)
 https://github.com/fullcalendar/fullcalendar
-Vendored for the no-build frontend. Styles are extracted so Content-Security-Policy style-src self does not depend on an injected style tag.
+Vendored for the no-build frontend. Styles are extracted into fullcalendar.css and linked from index.html.
+The global bundle's startup style injection is disabled (void 0 instead of _e(document), and Te returns when the stylesheet is blocked) because style-src 'self' rejects the injected style tag and that rejection throws before FullCalendar is defined.

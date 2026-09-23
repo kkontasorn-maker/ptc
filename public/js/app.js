@@ -1670,6 +1670,8 @@ function AgendaCalendar({ schedule, locked, onSelectRange, onPick, onChanged, on
       slotDuration: snap,
       snapDuration: snap,
       slotLabelInterval: '01:00:00',
+      slotLabelFormat: { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+      eventTimeFormat: { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
       editable: !locked,
       selectable: !locked,
       selectMirror: true,

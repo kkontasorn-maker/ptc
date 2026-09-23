@@ -30,7 +30,7 @@ function securityHeaders(req, res, next) {
   res.set('X-Frame-Options', 'DENY');
   res.set(
     'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' http: https: data:; style-src 'self'; script-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    "default-src 'self'; img-src 'self' http: https: data:; font-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
   );
   next();
 }
