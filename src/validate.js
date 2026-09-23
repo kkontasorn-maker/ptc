@@ -305,6 +305,138 @@ export function validateVerificationConfirm(body) {
   return { email, code };
 }
 
+const RELATIONSHIPS = new Set(['mother', 'father', 'guardian', 'other']);
+const STUDENT_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+function readOptionalText(value, details, field, label) {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string') {
+    details.push({ field, message: `${label} must be text` });
+    return undefined;
+  }
+  const text = value.trim();
+  if (!text) return null;
+  if (text.length > 200) {
+    details.push({ field, message: `${label} must be 200 characters or fewer` });
+    return undefined;
+  }
+  return text;
+}
+
+function readPositiveInt(value, details, field, label) {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || !Number.isSafeInteger(value)) {
+    details.push({ field, message: `${label} must be a positive integer` });
+    return undefined;
+  }
+  return value;
+}
+
+export function validateBookingCreate(body, timeZone) {
+  const data = requireObject(body);
+  assertAllowed(data, [
+    'parent_email',
+    'parent_relationship',
+    'parent_relationship_other',
+    'parent_first_name',
+    'parent_last_name',
+    'picks',
+  ]);
+  const details = [];
+  let parentEmail;
+  try {
+    parentEmail = normalizeEmail(data.parent_email, 'parent_email');
+  } catch (error) {
+    if (error instanceof ValidationError && error.details) details.push(...error.details);
+    else throw error;
+  }
+  let relationship;
+  if (typeof data.parent_relationship !== 'string' || !RELATIONSHIPS.has(data.parent_relationship)) {
+    details.push({
+      field: 'parent_relationship',
+      message: 'Relationship must be mother, father, guardian, or other',
+    });
+  } else {
+    relationship = data.parent_relationship;
+  }
+  const relationshipOther = readOptionalText(
+    data.parent_relationship_other,
+    details,
+    'parent_relationship_other',
+    'Relationship',
+  );
+  if (relationship === 'other' && !relationshipOther) {
+    details.push({
+      field: 'parent_relationship_other',
+      message: 'Describe the relationship',
+    });
+  }
+  const parentFirst = readOptionalText(data.parent_first_name, details, 'parent_first_name', 'First name');
+  const parentLast = readOptionalText(data.parent_last_name, details, 'parent_last_name', 'Last name');
+  const picks = [];
+  if (!Array.isArray(data.picks) || data.picks.length === 0) {
+    details.push({ field: 'picks', message: 'Choose at least one time' });
+  } else {
+    data.picks.forEach((pick, index) => {
+      const field = `picks.${index}`;
+      if (pick === null || typeof pick !== 'object' || Array.isArray(pick)) {
+        details.push({ field, message: 'Each time must be an object' });
+        return;
+      }
+      const extra = Object.keys(pick).filter((key) => ![
+        'student_powerschool_id', 'service_id', 'staff_id', 'start_time', 'end_time',
+      ].includes(key));
+      if (extra.length) {
+        details.push({ field, message: `Unknown field: ${extra[0]}` });
+        return;
+      }
+      let studentId;
+      if (typeof pick.student_powerschool_id !== 'string' || !STUDENT_ID.test(pick.student_powerschool_id)) {
+        details.push({ field, message: 'Choose a student linked to this email' });
+      } else {
+        studentId = pick.student_powerschool_id;
+      }
+      const serviceId = readPositiveInt(pick.service_id, details, field, 'Service');
+      const staffId = readPositiveInt(pick.staff_id, details, field, 'Teacher');
+      const start = parseDateTime(pick.start_time, timeZone);
+      const end = parseDateTime(pick.end_time, timeZone);
+      if (!start || !end || start >= end) {
+        details.push({ field, message: 'Choose an open time from the schedule' });
+      }
+      if (studentId && serviceId && staffId && start && end && start < end) {
+        picks.push({
+          student_powerschool_id: studentId,
+          service_id: serviceId,
+          staff_id: staffId,
+          start_time: start,
+          end_time: end,
+        });
+      }
+    });
+  }
+  if (details.length) fail(details);
+  return {
+    parent_email: parentEmail,
+    parent_relationship: relationship,
+    parent_relationship_other: relationship === 'other' ? relationshipOther : null,
+    parent_first_name: parentFirst,
+    parent_last_name: parentLast,
+    picks,
+  };
+}
+
+export function validateReschedule(body, timeZone) {
+  const data = requireObject(body);
+  assertAllowed(data, ['start_time', 'end_time']);
+  const details = [];
+  const start = readDateTime(data.start_time, details, 'start_time', timeZone);
+  const end = readDateTime(data.end_time, details, 'end_time', timeZone);
+  if (start && end && start >= end) {
+    details.push({ field: 'end_time', message: 'End time must be after start time' });
+  }
+  if (details.length) fail(details);
+  return { start_time: start, end_time: end };
+}
+
 export function validateAvailabilityPatch(body, existing, timeZone) {
   const data = requireObject(body);
   assertAllowed(data, ['start_time', 'end_time']);

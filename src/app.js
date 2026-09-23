@@ -19,6 +19,7 @@ import { createStaffRoutes } from './routes/staff.js';
 import { createAvailabilityRoutes } from './routes/availability.js';
 import { createVerificationRoutes } from './routes/verification.js';
 import { createParentRoutes } from './routes/parents.js';
+import { createBookingRoutes } from './routes/bookings.js';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -98,6 +99,7 @@ export function createApp(config) {
     exposeDevCode: Boolean(config.exposeDevCode),
   }));
   api.use(createParentRoutes({ repos, psapi, timeZone: config.timeZone }));
+  api.use(createBookingRoutes({ repos, psapi, timeZone: config.timeZone }));
   api.use(createEventRoutes({ repos, timeZone: config.timeZone }));
   api.use(createServiceRoutes({ repos }));
   api.use(createStaffRoutes({ repos, psapi }));

@@ -33,3 +33,8 @@ export function chunkSlots(blocks, durationMinutes, bookings, timeZone) {
   }
   return slots;
 }
+
+export function isScheduledSlot(blocks, durationMinutes, startTime, endTime, timeZone) {
+  const slots = chunkSlots(blocks, durationMinutes, [], timeZone);
+  return slots.some((slot) => slot.start_time === startTime && slot.end_time === endTime);
+}

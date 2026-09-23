@@ -107,7 +107,15 @@ function parseRoute(hash) {
   const query = new URLSearchParams(queryPart || '');
   const parts = (pathPart || '/events').split('/').filter(Boolean);
   const error = query.get('error');
-  if (parts[0] === 'verify') return { name: 'verify' };
+  if (parts[0] === 'verify') {
+    const returnTo = query.get('return') || '';
+    return {
+      name: 'verify',
+      returnTo: /^book\/[1-9]\d*$/.test(returnTo) ? returnTo : '',
+      email: query.get('email') || '',
+    };
+  }
+  if (parts[0] === 'book' && parts[1]) return { name: 'book', id: parts[1] };
   if (parts[0] === 'sign-in') return { name: 'sign-in', error };
   if (parts[0] === 'staff') {
     return parts[1] ? { name: 'staff-edit', id: parts[1] } : { name: 'staff' };
@@ -269,9 +277,9 @@ function SignIn({ auth, notice, onSignedIn }) {
   </div>`;
 }
 
-function VerifyEmailScreen() {
+function VerifyEmailScreen({ returnTo = '', initialEmail = '' }) {
   const [step, setStep] = useState('email');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -290,6 +298,7 @@ function VerifyEmailScreen() {
 
   async function loadChildren(address) {
     const data = await api(`/parents/me/children?email=${encodeURIComponent(address)}`, { allow401: true });
+    try { sessionStorage.setItem('ptcParentEmail', address); } catch { /* private mode */ }
     setChildren(data.children || []);
     setUnmatched(false);
     setStep('done');
@@ -393,6 +402,7 @@ function VerifyEmailScreen() {
               <div className="data-label">${child.grade ? `Grade ${child.grade}` : 'Grade not set'}</div>
               <div className="data-value">${child.name}${child.nickname ? ` (${child.nickname})` : ''}</div>
             </div>`)}
+            ${returnTo ? html`<a className="btn btn-primary section-gap" href=${`#/${returnTo}`}>Book conferences</a>` : null}
             <button className="btn btn-secondary section-gap" type="button" onClick=${reset}>Use a different email</button>
           </div>` : null}
           <p className="muted quiet-link"><a href="#/sign-in">Staff sign-in</a></p>
@@ -400,6 +410,337 @@ function VerifyEmailScreen() {
       </div>
     </main>
   </div>`;
+}
+
+function formatClock(iso) {
+  return iso ? iso.slice(11, 16) : '';
+}
+
+function BookingScreen({ eventId }) {
+  const id = positiveId(eventId);
+  const storedEmail = (() => {
+    try { return sessionStorage.getItem('ptcParentEmail') || ''; } catch { return ''; }
+  })();
+  const [email, setEmail] = useState(storedEmail);
+  const [phase, setPhase] = useState(storedEmail && id ? 'loading' : 'email');
+  const [view, setView] = useState(null);
+  const [childId, setChildId] = useState('');
+  const [selected, setSelected] = useState([]);
+  const [relationship, setRelationship] = useState('mother');
+  const [relationshipOther, setRelationshipOther] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [error, setError] = useState('');
+  const [locked, setLocked] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
+  const [moving, setMoving] = useState(null);
+  const [moveSlot, setMoveSlot] = useState(null);
+
+  const load = useCallback(async (address) => {
+    setPhase('loading');
+    setError('');
+    setLocked('');
+    try {
+      const status = await api(`/auth/device-status?email=${encodeURIComponent(address)}`, { allow401: true });
+      if (!status.verified) {
+        window.location.hash = `#/verify?return=book/${id}&email=${encodeURIComponent(address)}`;
+        return;
+      }
+      const data = await api(`/events/${id}/parent-view?email=${encodeURIComponent(address)}`, { allow401: true });
+      setView(data);
+      setChildId((current) => current || data.children?.[0]?.student_powerschool_id || '');
+      setPhase('grid');
+    } catch (err) {
+      if (err.status === 401) {
+        window.location.hash = `#/verify?return=book/${id}&email=${encodeURIComponent(address)}`;
+        return;
+      }
+      setError(err.message);
+      setPhase(err.code === 'NO_STUDENT_MATCH' ? 'unmatched' : 'error');
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id && storedEmail) load(storedEmail);
+  }, [id, storedEmail, load]);
+
+  function toggleSlot(child, teacher, slot) {
+    if (!slot.available || locked) return;
+    const key = `${child.student_powerschool_id}|${teacher.staff_id}|${teacher.service_id}|${slot.start_time}`;
+    setSelected((current) => {
+      const exists = current.some((item) => item.key === key);
+      if (exists) return current.filter((item) => item.key !== key);
+      return [...current, {
+        key,
+        student_powerschool_id: child.student_powerschool_id,
+        student_name: child.name,
+        service_id: teacher.service_id,
+        staff_id: teacher.staff_id,
+        display_name: teacher.display_name,
+        room: teacher.room,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+      }];
+    });
+  }
+
+  async function submitVisit(event) {
+    event.preventDefault();
+    if (!selected.length || locked) return;
+    setBusy(true);
+    setError('');
+    try {
+      const body = {
+        parent_email: email.trim(),
+        parent_relationship: relationship,
+        picks: selected.map((item) => ({
+          student_powerschool_id: item.student_powerschool_id,
+          service_id: item.service_id,
+          staff_id: item.staff_id,
+          start_time: item.start_time,
+          end_time: item.end_time,
+        })),
+      };
+      if (relationship === 'other') body.parent_relationship_other = relationshipOther.trim();
+      if (firstName.trim()) body.parent_first_name = firstName.trim();
+      if (lastName.trim()) body.parent_last_name = lastName.trim();
+      const data = await api('/bookings', { method: 'POST', body, allow401: true });
+      setConfirmation(data);
+      setSelected([]);
+      setPhase('confirmed');
+      await loadQuiet();
+    } catch (err) {
+      if (err.status === 423) setLocked(err.message);
+      else setError(err.message);
+      if (err.status === 409) await loadQuiet();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadQuiet() {
+    try {
+      const data = await api(`/events/${id}/parent-view?email=${encodeURIComponent(email.trim())}`, { allow401: true });
+      setView(data);
+    } catch { /* confirmation still stands */ }
+  }
+
+  async function cancelVisit() {
+    if (!confirmation?.booking_batch_id) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api(`/bookings/batch/${confirmation.booking_batch_id}`, { method: 'DELETE', allow401: true });
+      setConfirmation(null);
+      setError('');
+      setPhase('cancelled');
+      await loadQuiet();
+    } catch (err) {
+      if (err.status === 423) setLocked(err.message);
+      else setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelOne(booking) {
+    setBusy(true);
+    setError('');
+    try {
+      await api(`/bookings/${booking.id}`, { method: 'DELETE', allow401: true });
+      const remaining = (confirmation?.bookings || []).filter((item) => item.id !== booking.id);
+      setConfirmation(remaining.length ? { ...confirmation, bookings: remaining } : null);
+      if (!remaining.length) setPhase('cancelled');
+      await loadQuiet();
+    } catch (err) {
+      if (err.status === 423) setLocked(err.message);
+      else setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startMove(booking) {
+    setMoving(booking);
+    setMoveSlot(null);
+    setError('');
+    setPhase('move');
+  }
+
+  async function saveMove(event) {
+    event.preventDefault();
+    if (!moving || !moveSlot) return;
+    setBusy(true);
+    setError('');
+    try {
+      const data = await api(`/bookings/${moving.id}/reschedule`, {
+        method: 'PATCH',
+        allow401: true,
+        body: { start_time: moveSlot.start_time, end_time: moveSlot.end_time },
+      });
+      setConfirmation((current) => ({
+        ...current,
+        bookings: (current?.bookings || []).map((item) => (item.id === data.booking.id ? data.booking : item)),
+      }));
+      setMoving(null);
+      setMoveSlot(null);
+      setPhase('confirmed');
+      await loadQuiet();
+    } catch (err) {
+      if (err.status === 423) {
+        setLocked(err.message);
+        setPhase('confirmed');
+      } else setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const child = view?.children?.find((item) => item.student_powerschool_id === childId) || view?.children?.[0];
+  const held = [];
+  for (const person of view?.children || []) {
+    for (const teacher of person.teachers || []) {
+      if (!teacher.already_booked) continue;
+      held.push({
+        key: `held-${teacher.already_booked.booking_id}`,
+        student_name: person.name,
+        display_name: teacher.display_name,
+        room: teacher.room,
+        start_time: teacher.already_booked.start_time,
+        end_time: teacher.already_booked.end_time,
+      });
+    }
+  }
+
+  if (!id) {
+    return html`<div>
+      <header className="app-header"><${Logo} href="#/verify" /></header>
+      <main className="main"><div className="note">This conference is not open.</div></main>
+    </div>`;
+  }
+
+  return html`<div>
+    <header className="app-header"><${Logo} href="#/verify" /></header>
+    <main className="main book-main">
+      <div className="screen-head">
+        <div>
+          <h1>Book a conference</h1>
+          <p className="lede">Choose a time with each teacher. One visit is confirmed together.</p>
+        </div>
+      </div>
+      ${error ? html`<div className="note section-gap">${error}</div>` : null}
+      ${locked ? html`<div className="lock-row section-gap">${html`<${IconLock} />`}<span>${locked}</span></div>` : null}
+      ${phase === 'email' ? html`<form className="card form" onSubmit=${(event) => { event.preventDefault(); const address = email.trim(); try { sessionStorage.setItem('ptcParentEmail', address); } catch { /* private mode */ } load(address); }}>
+        <label className="field">
+          <span className="field-label">Email</span>
+          <input className="input" type="email" required value=${email} placeholder="name@example.com" onInput=${(event) => setEmail(event.target.value)} />
+        </label>
+        <button className="btn btn-primary" type="submit">Continue</button>
+      </form>` : null}
+      ${phase === 'loading' ? html`<p className="muted">Loading the schedule…</p>` : null}
+      ${phase === 'unmatched' ? html`<div className="card"><p>We couldn't match this email to a student. Please contact the front office.</p></div>` : null}
+      ${phase === 'error' ? html`<p className="muted quiet-link"><a href="#/verify">Verify your email</a></p>` : null}
+      ${phase === 'cancelled' ? html`<div className="card"><p>This visit was cancelled.</p><button className="btn btn-secondary section-gap" type="button" onClick=${() => { setPhase('grid'); setError(''); }}>Choose new times</button></div>` : null}
+      ${phase === 'grid' && view ? html`<div className="book-layout">
+        <div>
+          <div className="child-tabs" role="tablist" aria-label="Children">
+            ${(view.children || []).map((person) => html`<button type="button" role="tab" key=${person.student_powerschool_id} className="child-tab" aria-selected=${person.student_powerschool_id === child?.student_powerschool_id ? 'true' : 'false'} onClick=${() => setChildId(person.student_powerschool_id)}>
+              ${person.name}
+            </button>`)}
+          </div>
+          ${child && !(child.teachers || []).length ? html`<div className="card"><p>No teachers on this conference for ${child.name}.</p></div>` : null}
+          <div className="teacher-grid">
+            ${(child?.teachers || []).map((teacher) => html`<article className="card teacher-card" key=${`${teacher.staff_id}-${teacher.service_id}`}>
+              <h2>${teacher.display_name}</h2>
+              <p className="muted">${teacher.room ? `Room ${teacher.room}` : 'Room not set'}</p>
+              <div className="slot-grid">
+                ${teacher.slots.map((slot) => {
+                  const key = `${child.student_powerschool_id}|${teacher.staff_id}|${teacher.service_id}|${slot.start_time}`;
+                  const isSelected = selected.some((item) => item.key === key);
+                  const taken = !slot.available;
+                  return html`<button type="button" key=${slot.start_time} className=${cx('slot-btn', isSelected && 'selected', taken && 'taken')} disabled=${taken || Boolean(locked)} aria-pressed=${isSelected ? 'true' : 'false'} onClick=${() => toggleSlot(child, teacher, slot)}>
+                    ${formatClock(slot.start_time)}–${formatClock(slot.end_time)}
+                  </button>`;
+                })}
+              </div>
+              ${teacher.already_booked ? html`<p className="booked-note">Booked ${formatClock(teacher.already_booked.start_time)}–${formatClock(teacher.already_booked.end_time)}</p>` : null}
+            </article>`)}
+          </div>
+        </div>
+        <form className="card day-so-far" onSubmit=${submitVisit}>
+          <h2>Day so far</h2>
+          ${!held.length && !selected.length ? html`<p className="muted">No times selected yet.</p>` : null}
+          ${held.map((item) => html`<div className="data-row" key=${item.key}>
+            <div className="data-label">${formatClock(item.start_time)}–${formatClock(item.end_time)}</div>
+            <div className="data-value">${item.student_name} · ${item.display_name}${item.room ? ` · Room ${item.room}` : ''}</div>
+          </div>`)}
+          ${selected.map((item) => html`<div className="data-row" key=${item.key}>
+            <div className="data-label">${formatClock(item.start_time)}–${formatClock(item.end_time)}</div>
+            <div className="data-value">${item.student_name} · ${item.display_name}${item.room ? ` · Room ${item.room}` : ''}</div>
+          </div>`)}
+          <label className="field">
+            <span className="field-label">Relationship</span>
+            <select className="input" value=${relationship} onChange=${(event) => setRelationship(event.target.value)}>
+              <option value="mother">Mother</option>
+              <option value="father">Father</option>
+              <option value="guardian">Guardian</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          ${relationship === 'other' ? html`<label className="field">
+            <span className="field-label">Describe the relationship</span>
+            <input className="input" required value=${relationshipOther} onInput=${(event) => setRelationshipOther(event.target.value)} />
+          </label>` : null}
+          <label className="field">
+            <span className="field-label">First name</span>
+            <input className="input" value=${firstName} onInput=${(event) => setFirstName(event.target.value)} />
+            <span className="field-hint">Optional. Used on the confirmation only.</span>
+          </label>
+          <label className="field">
+            <span className="field-label">Last name</span>
+            <input className="input" value=${lastName} onInput=${(event) => setLastName(event.target.value)} />
+          </label>
+          <button className="btn btn-primary" type="submit" disabled=${busy || !selected.length || Boolean(locked)}>${busy ? 'Booking…' : 'Confirm visit'}</button>
+        </form>
+      </div>` : null}
+      ${phase === 'confirmed' && confirmation ? html`<div className="card">
+        <div><span className="success-note">Booking confirmed.</span></div>
+        ${(confirmation.bookings || []).map((booking) => html`<div className="data-row" key=${booking.id}>
+          <div className="data-label">${formatClock(booking.start_time)}–${formatClock(booking.end_time)}</div>
+          <div className="data-value">
+            ${booking.student_name} · ${booking.display_name}${booking.room ? ` · Room ${booking.room}` : ''}
+            <div className="row-actions">
+              <button type="button" className="text-button" onClick=${() => startMove(booking)} disabled=${Boolean(locked) || busy}>Change time</button>
+              <button type="button" className="text-button" onClick=${() => cancelOne(booking)} disabled=${Boolean(locked) || busy}>Cancel this time</button>
+            </div>
+          </div>
+        </div>`)}
+        <button className="btn btn-secondary section-gap" type="button" disabled=${busy || Boolean(locked)} onClick=${cancelVisit}>Cancel this visit</button>
+      </div>` : null}
+      ${phase === 'move' && moving ? html`<form className="card form" onSubmit=${saveMove}>
+        <h2>Change time</h2>
+        <p className="lede">${moving.student_name} · ${moving.display_name}</p>
+        <div className="slot-grid">
+          ${moveChoices(view, moving).map((slot) => html`<button type="button" key=${slot.start_time} className=${cx('slot-btn', moveSlot?.start_time === slot.start_time && 'selected', !slot.available && slot.start_time !== moving.start_time && 'taken')} disabled=${(!slot.available && slot.start_time !== moving.start_time) || Boolean(locked)} onClick=${() => setMoveSlot(slot)}>
+            ${formatClock(slot.start_time)}–${formatClock(slot.end_time)}
+          </button>`)}
+        </div>
+        <button className="btn btn-primary" type="submit" disabled=${busy || !moveSlot || Boolean(locked)}>${busy ? 'Saving…' : 'Save time'}</button>
+        <button className="btn btn-secondary" type="button" onClick=${() => { setPhase('confirmed'); setMoving(null); }}>Back</button>
+      </form>` : null}
+    </main>
+  </div>`;
+}
+
+function moveChoices(view, booking) {
+  for (const child of view?.children || []) {
+    if (child.student_powerschool_id !== booking.student_powerschool_id) continue;
+    for (const teacher of child.teachers || []) {
+      if (teacher.staff_id === booking.staff_id && teacher.service_id === booking.service_id) return teacher.slots;
+    }
+  }
+  return [];
 }
 
 function attentionEventId(events) {
@@ -1268,6 +1609,7 @@ function App() {
       'staff-edit': 'Staff',
       'sign-in': 'Sign in',
       verify: 'Verify your email',
+      book: 'Book a conference',
     };
     document.title = `${titles[route.name] || 'Conferences'} — Nakornpayap International School`;
   }, [route.name]);
@@ -1278,7 +1620,10 @@ function App() {
     window.location.hash = '#/sign-in';
   }
 
-  if (route.name === 'verify') return html`<${VerifyEmailScreen} />`;
+  if (route.name === 'verify') {
+    return html`<${VerifyEmailScreen} returnTo=${route.returnTo} initialEmail=${route.email} />`;
+  }
+  if (route.name === 'book') return html`<${BookingScreen} eventId=${route.id} />`;
 
   if (user === undefined) {
     return html`<div>

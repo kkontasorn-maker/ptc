@@ -52,6 +52,14 @@ export class StaffRepository {
       VALUES (?, ?, NULL)
     `);
     this.unassignStmt = db.prepare('DELETE FROM staff_services WHERE staff_id = ? AND service_id = ?');
+    this.assignmentLookupStmt = db.prepare(`
+      SELECT s.id AS staff_id, s.powerschool_teacher_id, s.display_name, s.photo_url,
+             ss.service_id, ss.room_override, sv.slot_duration_minutes, sv.event_id
+      FROM staff_services ss
+      JOIN staff s ON s.id = ss.staff_id
+      JOIN services sv ON sv.id = ss.service_id
+      WHERE ss.staff_id = ? AND ss.service_id = ?
+    `);
     this.scheduleStmt = db.prepare(`
       SELECT s.id AS staff_id, s.powerschool_teacher_id, s.display_name, s.photo_url,
              ss.service_id, ss.room_override, sv.slot_duration_minutes
@@ -146,6 +154,21 @@ export class StaffRepository {
   unassign(serviceId, staffId) {
     const info = this.unassignStmt.run(staffId, serviceId);
     return info.changes > 0;
+  }
+
+  findAssignment(staffId, serviceId) {
+    const row = this.assignmentLookupStmt.get(staffId, serviceId);
+    if (!row) return null;
+    return {
+      staff_id: row.staff_id,
+      powerschool_teacher_id: row.powerschool_teacher_id,
+      display_name: row.display_name,
+      photo_url: row.photo_url,
+      service_id: row.service_id,
+      room_override: row.room_override,
+      slot_duration_minutes: row.slot_duration_minutes,
+      event_id: row.event_id,
+    };
   }
 
   listSchedule(eventId) {

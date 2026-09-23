@@ -1,3 +1,6 @@
+import { ConflictError, HttpError, ValidationError } from '../errors.js';
+import { isScheduledSlot } from '../slots.js';
+
 function mapBooking(row) {
   return {
     id: row.id,
@@ -6,13 +9,25 @@ function mapBooking(row) {
     staff_id: row.staff_id,
     start_time: row.start_time,
     end_time: row.end_time,
+    booking_batch_id: row.booking_batch_id,
     student_powerschool_id: row.student_powerschool_id,
+    student_name: row.student_name,
+    student_nickname: row.student_nickname,
+    student_grade: row.student_grade,
     parent_email: String(row.parent_email || '').trim().toLowerCase(),
+    parent_first_name: row.parent_first_name,
+    parent_last_name: row.parent_last_name,
+    parent_relationship: row.parent_relationship,
+    parent_relationship_other: row.parent_relationship_other,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
 export class BookingRepository {
   constructor(db) {
+    this.db = db;
     this.confirmedForEventStmt = db.prepare(`
       SELECT id, event_id, service_id, staff_id, start_time, end_time,
              student_powerschool_id, parent_email
@@ -20,9 +35,142 @@ export class BookingRepository {
       WHERE event_id = ? AND status = 'confirmed'
       ORDER BY start_time ASC, id ASC
     `);
+    this.findStmt = db.prepare('SELECT * FROM bookings WHERE id = ?');
+    this.listBatchStmt = db.prepare(`
+      SELECT * FROM bookings WHERE booking_batch_id = ? ORDER BY start_time ASC, id ASC
+    `);
+    this.overlapStmt = db.prepare(`
+      SELECT COUNT(*) AS n FROM bookings
+      WHERE staff_id = ?
+        AND status = 'confirmed'
+        AND start_time < ?
+        AND end_time > ?
+        AND id != ?
+    `);
+    this.insertStmt = db.prepare(`
+      INSERT INTO bookings (
+        event_id, service_id, staff_id, start_time, end_time, booking_batch_id,
+        student_powerschool_id, student_name, student_nickname, student_grade,
+        parent_email, parent_first_name, parent_last_name,
+        parent_relationship, parent_relationship_other
+      ) VALUES (
+        @event_id, @service_id, @staff_id, @start_time, @end_time, @booking_batch_id,
+        @student_powerschool_id, @student_name, @student_nickname, @student_grade,
+        @parent_email, @parent_first_name, @parent_last_name,
+        @parent_relationship, @parent_relationship_other
+      )
+    `);
+    this.cancelStmt = db.prepare(`
+      UPDATE bookings
+      SET status = 'cancelled', updated_at = datetime('now')
+      WHERE id = ? AND status = 'confirmed'
+    `);
+    this.cancelBatchStmt = db.prepare(`
+      UPDATE bookings
+      SET status = 'cancelled', updated_at = datetime('now')
+      WHERE booking_batch_id = ? AND status = 'confirmed'
+    `);
+    this.moveStmt = db.prepare(`
+      UPDATE bookings
+      SET start_time = ?, end_time = ?, updated_at = datetime('now')
+      WHERE id = ? AND status = 'confirmed'
+    `);
   }
 
   listConfirmedForEvent(eventId) {
-    return this.confirmedForEventStmt.all(eventId).map(mapBooking);
+    return this.confirmedForEventStmt.all(eventId).map((row) => ({
+      id: row.id,
+      event_id: row.event_id,
+      service_id: row.service_id,
+      staff_id: row.staff_id,
+      start_time: row.start_time,
+      end_time: row.end_time,
+      student_powerschool_id: row.student_powerschool_id,
+      parent_email: String(row.parent_email || '').trim().toLowerCase(),
+    }));
+  }
+
+  findById(id) {
+    const row = this.findStmt.get(id);
+    return row ? mapBooking(row) : null;
+  }
+
+  listByBatch(batchId) {
+    return this.listBatchStmt.all(batchId).map(mapBooking);
+  }
+
+  countOverlap(staffId, rangeEnd, rangeStart, excludeId = -1) {
+    return this.overlapStmt.get(staffId, rangeEnd, rangeStart, excludeId).n;
+  }
+
+  claim(items, { timeZone, availability }) {
+    const run = this.db.transaction(() => {
+      for (const item of items) {
+        this.assertSlotOpen(item, { timeZone, availability, excludeId: null });
+        this.insertStmt.run(item);
+      }
+      return this.listByBatch(items[0].booking_batch_id);
+    });
+    return this.runImmediate(run);
+  }
+
+  move(booking, startTime, endTime, { timeZone, availability, slotDuration }) {
+    const run = this.db.transaction(() => {
+      const current = this.findById(booking.id);
+      if (!current || current.status !== 'confirmed') return null;
+      this.assertSlotOpen({
+        staff_id: current.staff_id,
+        event_id: current.event_id,
+        start_time: startTime,
+        end_time: endTime,
+        slot_duration_minutes: slotDuration,
+      }, { timeZone, availability, excludeId: current.id });
+      this.moveStmt.run(startTime, endTime, current.id);
+      return this.findById(current.id);
+    });
+    return this.runImmediate(run);
+  }
+
+  cancel(id) {
+    const run = this.db.transaction(() => {
+      const current = this.findById(id);
+      if (!current || current.status !== 'confirmed') return current;
+      this.cancelStmt.run(id);
+      return this.findById(id);
+    });
+    return run.immediate();
+  }
+
+  cancelBatch(batchId) {
+    const run = this.db.transaction(() => {
+      this.cancelBatchStmt.run(batchId);
+      return this.listByBatch(batchId);
+    });
+    return run.immediate();
+  }
+
+  assertSlotOpen(item, { timeZone, availability, excludeId }) {
+    const blocks = availability.listBookableForStaffEvent(item.event_id, item.staff_id);
+    if (!isScheduledSlot(blocks, item.slot_duration_minutes, item.start_time, item.end_time, timeZone)) {
+      throw new ValidationError('Choose an open time from the schedule', [{
+        field: 'picks',
+        message: 'Choose an open time from the schedule',
+      }]);
+    }
+    if (this.countOverlap(item.staff_id, item.end_time, item.start_time, excludeId ?? -1) > 0) {
+      throw new ConflictError('That time was just taken. Choose another.');
+    }
+  }
+
+  runImmediate(run) {
+    try {
+      return run.immediate();
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      if (typeof error?.code === 'string' && error.code.startsWith('SQLITE_CONSTRAINT')) {
+        throw new ConflictError('That time was just taken. Choose another.');
+      }
+      throw error;
+    }
   }
 }

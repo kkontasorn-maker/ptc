@@ -86,4 +86,11 @@ export class VerificationRepository {
     if (!email || !deviceToken) return null;
     return this.findValidStmt.get(email, deviceToken, nowIso) || null;
   }
+
+  findValidByToken(deviceToken, nowIso = new Date().toISOString()) {
+    if (!deviceToken) return null;
+    const row = this.findTokenStmt.get(deviceToken);
+    if (!row) return null;
+    return this.findValid(row.email, deviceToken, nowIso);
+  }
 }

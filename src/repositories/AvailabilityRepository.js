@@ -47,6 +47,10 @@ export class AvailabilityRepository {
     return this.bookableForEventStmt.all(eventId).map(mapBlock);
   }
 
+  listBookableForStaffEvent(eventId, staffId) {
+    return this.listForStaffEvent(eventId, staffId).filter((block) => block.block_type === 'bookable');
+  }
+
   findById(id) {
     return mapBlock(this.findStmt.get(id));
   }

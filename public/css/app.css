@@ -448,6 +448,110 @@ select.input {
 .quiet-link { margin-top: 4px; }
 .quiet-link a { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
 
+.book-layout { display: grid; gap: 16px; }
+.book-main { padding-bottom: 280px; }
+
+.child-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+
+.child-tab {
+  flex: none;
+  border: 0.5px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 400;
+}
+
+.child-tab[aria-selected="true"] {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--surface-page);
+}
+
+.teacher-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.slot-btn {
+  border: 0.5px solid var(--border);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border-radius: 8px;
+  min-height: 42px;
+  padding: 8px;
+  font-weight: 400;
+}
+
+.slot-btn.selected {
+  background: #D5D6D8;
+  border-color: var(--border-strong);
+}
+
+.slot-btn.taken,
+.slot-btn:disabled {
+  color: var(--text-muted);
+  background: transparent;
+  text-decoration: line-through;
+  cursor: default;
+}
+
+.booked-note {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-decoration: line-through;
+}
+
+.day-so-far {
+  position: fixed;
+  z-index: 3;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  max-height: 46vh;
+  overflow: auto;
+}
+
+.day-so-far h2 { margin-bottom: 8px; }
+
+.text-button {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.text-button:disabled { color: var(--text-muted); cursor: default; }
+
+@media (min-width: 900px) {
+  .book-layout { grid-template-columns: 1fr 300px; align-items: start; }
+  .book-main { padding-bottom: 72px; }
+  .teacher-grid { grid-template-columns: 1fr 1fr; }
+  .day-so-far {
+    position: sticky;
+    top: 84px;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    max-height: calc(100vh - 110px);
+  }
+}
+
 .title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 .section-gap { margin-top: 22px; }

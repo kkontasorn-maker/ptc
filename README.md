@@ -2,7 +2,7 @@
 
 Admin core for Nakornpayap International School parent-teacher conferences. IT sets up a conference, assigns teachers to services, and opens booking when the schedule is ready. Parents do not see a conference until it is open.
 
-This server has the admin core (events, services, staff, availability) and the parent identity layer: email codes, a trusted-device cookie, child lookup, and the event parent view. The booking form, teacher self-service calendar, and landing-page editor are not in this server.
+This server has the admin core, parent email verification, and booking submission. Teacher self-service and the landing-page editor are not in this server.
 
 ## Run
 
@@ -48,6 +48,35 @@ Confirm with `POST /api/v1/auth/verification-codes/confirm` and `{ "email", "cod
 
 Send is limited to 3 codes per email per hour. A verified address with no PowerSchool guardian match returns `404` `NO_STUDENT_MATCH`. An unpublished conference returns `404` `Event not found` from parent-view, the same body as a missing id.
 
+## Book a conference
+
+Open [Book a conference](http://127.0.0.1:47231/#/book/1) after the email is verified. Replace `1` with the open conference id. The screen loads `GET /events/{id}/parent-view`, then submits every selected time in one `POST /api/v1/bookings`.
+
+```bash
+curl -s -b cookies.txt -X POST http://127.0.0.1:47231/api/v1/bookings \
+  -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{
+    "parent_email": "parent@nis.ac.th",
+    "parent_relationship": "mother",
+    "picks": [{
+      "student_powerschool_id": "S1001",
+      "service_id": 1,
+      "staff_id": 1,
+      "start_time": "2026-10-23T08:00:00+07:00",
+      "end_time": "2026-10-23T08:15:00+07:00"
+    }]
+  }'
+```
+
+The server checks the device cookie, the guardian match, the teacher assignment, and the open slot again. If any pick fails, none are saved. A taken slot returns `409`. After `cutoff_at`, create, reschedule, and cancel return `423` with a message such as `Changes closed 14 Oct 2026 at 17:00`.
+
+- `PATCH /api/v1/bookings/{id}/reschedule` with `{ "start_time", "end_time" }`
+- `DELETE /api/v1/bookings/{id}` cancels one time
+- `DELETE /api/v1/bookings/batch/{booking_batch_id}` cancels the whole visit
+
+`parent_first_name` and `parent_last_name` are optional. The spec does not say they are required.
+
 ```bash
 npm test
 ```
@@ -76,10 +105,9 @@ Break blocks are not subtracted from bookable windows. The spec does not define 
 
 ## Not in this slice
 
-- Booking create, reschedule, cancel, and the booking screen
 - `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route
-- Booking lookup and reports
-- Teacher FullCalendar self-service (the availability API already limits teachers to their own rows)
+- `GET /bookings/lookup` and the front-office bookings report
+- Teacher FullCalendar self-service (a teacher session can still reschedule or cancel that teacher's own booking through the API)
 - Custom fields
 - Landing-page sections
 - The post-cutoff summary email
