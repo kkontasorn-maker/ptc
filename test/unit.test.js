@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
 import { projectRoot } from '../src/config.js';
 import { openDatabase } from '../src/db.js';
 import { createPsapiClient, mapGuardianStudents, mapTeacherPayload } from '../src/psapi/client.js';
+import { MOCK_GUARDIAN_CHAIN } from '../src/psapi/mock-data.js';
 import { PsapiError } from '../src/errors.js';
 import { chunkSlots } from '../src/slots.js';
 import { verificationPayload } from '../src/mail/mailer.js';
@@ -166,12 +167,17 @@ describe('staff sync overrides', () => {
   });
 });
 
+function schemaPage(table, rows) {
+  return {
+    record: rows.map((row) => ({ tables: { [table]: row } })),
+  };
+}
+
 describe('guardian mapping and slots', () => {
-  test('keeps students for the requested guardian email', () => {
+  test('maps student records and leaves guardian matching to the lookup chain', () => {
     const students = mapGuardianStudents({
       record: [
         {
-          guardian_email: 'Parent@NIS.ac.th',
           tables: {
             students: {
               id: 501,
@@ -184,18 +190,27 @@ describe('guardian mapping and slots', () => {
           },
         },
         {
-          guardian_email: 'other@example.com',
           students: { id: 9, name: 'Other Child', grade: '1', teachers: [] },
         },
       ],
-    }, 'parent@nis.ac.th');
-    assert.deepEqual(students, [{
-      student_powerschool_id: '501',
-      name: 'Niran Srisuk',
-      nickname: 'Nin',
-      grade: '5',
-      teachers: [{ powerschool_teacher_id: '1001', room: '204' }],
-    }]);
+    });
+    assert.deepEqual(students, [
+      {
+        student_powerschool_id: '501',
+        name: 'Niran Srisuk',
+        nickname: 'Nin',
+        grade: '5',
+        teachers: [{ powerschool_teacher_id: '1001', room: '204' }],
+      },
+      {
+        student_powerschool_id: '9',
+        name: 'Other Child',
+        nickname: null,
+        grade: '1',
+        teachers: [],
+      },
+    ]);
+    assert.equal(Object.hasOwn(students[0], 'guardian_email'), false);
   });
 
   test('uses the mock guardian list only when credentials are absent', async () => {
@@ -212,15 +227,169 @@ describe('guardian mapping and slots', () => {
       baseUrl: 'https://ps.example',
       clientId: 'id',
       clientSecret: 'secret',
-      studentsPath: '/students',
+      studentsPath: '/ws/schema/table/students',
       fetchImpl: async (url) => {
         if (String(url).includes('access_token')) {
           return { ok: true, json: async () => ({ access_token: 'token' }) };
         }
-        return { ok: false, status: 500, json: async () => ({}) };
+        return { ok: false, status: 500, json: async () => ({ message: 'secret token parent@nis.ac.th' }) };
       },
     });
-    await assert.rejects(() => live.studentsForGuardian('parent@nis.ac.th'), PsapiError);
+    await assert.rejects(
+      () => live.studentsForGuardian('parent@nis.ac.th'),
+      (error) => {
+        assert.ok(error instanceof PsapiError);
+        assert.equal(error.message, 'PowerSchool email address request failed');
+        assert.equal(error.message.includes('secret'), false);
+        assert.equal(error.message.includes('token'), false);
+        assert.equal(error.message.includes('parent@nis.ac.th'), false);
+        return true;
+      },
+    );
+  });
+
+  test('narrows a guardian through the contact tables before loading students', async () => {
+    const clientSource = readFileSync(path.join(projectRoot, 'src/psapi/client.js'), 'utf8');
+    assert.equal(clientSource.includes('guardian_email'), false);
+
+    const calls = [];
+    const live = createPsapiClient({
+      baseUrl: 'https://ps.example',
+      clientId: 'client-id',
+      clientSecret: 'ps-client-secret-xyz',
+      studentsPath: '/ws/schema/table/students',
+      fetchImpl: async (url) => {
+        const href = String(url);
+        calls.push(href);
+        if (href.includes('access_token')) {
+          return { ok: true, json: async () => ({ access_token: 'ps-access-token-xyz' }) };
+        }
+        const table = new URL(href).pathname.split('/').pop();
+        const rows = MOCK_GUARDIAN_CHAIN[table] || [];
+        return { ok: true, json: async () => schemaPage(table, rows) };
+      },
+    });
+
+    const result = await live.studentsForGuardian('Parent@NIS.ac.th');
+    assert.equal(result.source, 'powerschool');
+    assert.deepEqual(result.students, [{
+      student_powerschool_id: '501',
+      name: 'Niran Srisuk',
+      nickname: 'Nin',
+      grade: '5',
+      teachers: [{ powerschool_teacher_id: '1001', room: '204' }],
+    }]);
+
+    const tables = calls.map((href) => new URL(href).pathname);
+    assert.deepEqual(tables, [
+      '/oauth/access_token',
+      '/ws/schema/table/emailaddress',
+      '/ws/schema/table/personemailaddressassoc',
+      '/ws/schema/table/studentcontactassoc',
+      '/ws/schema/table/studentcontactdetail',
+      '/ws/schema/table/students',
+    ]);
+    const query = (href) => new URL(href).searchParams;
+    assert.equal(query(calls[1]).get('projection'), 'emailaddressid,emailaddress');
+    assert.equal(query(calls[1]).get('q'), 'emailaddress==parent@nis.ac.th');
+    assert.equal(query(calls[2]).get('projection'), 'personid,emailaddressid');
+    assert.equal(query(calls[2]).get('q'), 'emailaddressid=in=(10)');
+    assert.equal(query(calls[3]).get('projection'), 'studentdcid,studentcontactassocid,personid');
+    assert.equal(query(calls[3]).get('q'), 'personid=in=(100)');
+    assert.equal(query(calls[4]).get('projection'), 'studentcontactassocid,isactive');
+    assert.equal(query(calls[4]).get('q'), 'studentcontactassocid=in=(900,901);isactive==1');
+    assert.equal(query(calls[4]).get('q').includes('iscustodial'), false);
+    assert.equal(query(calls[4]).get('q').includes('isemergency'), false);
+    assert.equal(query(calls[5]).get('q'), 'dcid=in=(501)');
+    assert.equal(query(calls[5]).has('projection'), false);
+    for (const href of calls) {
+      assert.equal(href.includes('guardian_email'), false);
+      assert.equal(href.includes('ps-client-secret-xyz'), false);
+      assert.equal(href.includes('ps-access-token-xyz'), false);
+      assert.equal(href.includes('iscustodial'), false);
+      assert.equal(href.includes('isemergency'), false);
+    }
+
+    const missed = [];
+    const unmatched = createPsapiClient({
+      baseUrl: 'https://ps.example',
+      clientId: 'client-id',
+      clientSecret: 'ps-client-secret-xyz',
+      fetchImpl: async (url) => {
+        const href = String(url);
+        missed.push(new URL(href).pathname);
+        if (href.includes('access_token')) {
+          return { ok: true, json: async () => ({ access_token: 'ps-access-token-xyz' }) };
+        }
+        return { ok: true, json: async () => schemaPage('emailaddress', MOCK_GUARDIAN_CHAIN.emailaddress) };
+      },
+    });
+    const none = await unmatched.studentsForGuardian('quiet@example.com');
+    assert.deepEqual(none, { source: 'powerschool', students: [] });
+    assert.deepEqual(missed, ['/oauth/access_token', '/ws/schema/table/emailaddress']);
+  });
+
+  test('stops the guardian chain when a later table fails', async () => {
+    const calls = [];
+    const live = createPsapiClient({
+      baseUrl: 'https://ps.example',
+      clientId: 'client-id',
+      clientSecret: 'ps-client-secret-xyz',
+      fetchImpl: async (url) => {
+        const href = String(url);
+        calls.push(new URL(href).pathname);
+        if (href.includes('access_token')) {
+          return { ok: true, json: async () => ({ access_token: 'ps-access-token-xyz' }) };
+        }
+        if (href.includes('/personemailaddressassoc')) {
+          return {
+            ok: false,
+            status: 500,
+            json: async () => ({ error: 'ps-client-secret-xyz', token: 'ps-access-token-xyz', email: 'parent@nis.ac.th' }),
+          };
+        }
+        const table = new URL(href).pathname.split('/').pop();
+        return { ok: true, json: async () => schemaPage(table, MOCK_GUARDIAN_CHAIN[table] || []) };
+      },
+    });
+    await assert.rejects(
+      () => live.studentsForGuardian('parent@nis.ac.th'),
+      (error) => {
+        assert.ok(error instanceof PsapiError);
+        assert.equal(error.message, 'PowerSchool person email request failed');
+        assert.equal(error.message.includes('ps-client-secret-xyz'), false);
+        assert.equal(error.message.includes('ps-access-token-xyz'), false);
+        assert.equal(error.message.includes('parent@nis.ac.th'), false);
+        return true;
+      },
+    );
+    assert.deepEqual(calls, [
+      '/oauth/access_token',
+      '/ws/schema/table/emailaddress',
+      '/ws/schema/table/personemailaddressassoc',
+    ]);
+    assert.equal(live.connectionStatus().error, 'PowerSchool person email request failed');
+
+    let called = false;
+    const rejected = createPsapiClient({
+      baseUrl: 'https://ps.example',
+      clientId: 'client-id',
+      clientSecret: 'ps-client-secret-xyz',
+      fetchImpl: async () => {
+        called = true;
+        return { ok: true, json: async () => ({}) };
+      },
+    });
+    await assert.rejects(
+      () => rejected.studentsForGuardian('parent@nis.ac.th;dcid==1'),
+      (error) => {
+        assert.equal(error.message, 'PowerSchool email address request failed');
+        assert.equal(error.message.includes('dcid'), false);
+        assert.equal(error.message.includes('ps-client-secret-xyz'), false);
+        return true;
+      },
+    );
+    assert.equal(called, false);
   });
 
   test('chunks bookable time and leaves break overlap in place', () => {
