@@ -151,6 +151,7 @@ describe('admin API', { concurrency: false }, () => {
       'device_verifications',
       'email_deliveries',
       'events',
+      'landing_page_blocks',
       'parent_contact_preferences',
       'services',
       'staff',
@@ -175,6 +176,7 @@ describe('admin API', { concurrency: false }, () => {
       'idx_device_verifications_lookup',
       'idx_email_deliveries_recipient',
       'idx_email_deliveries_status',
+      'idx_landing_blocks_position',
       'idx_verification_codes_email',
     ]);
   });

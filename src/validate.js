@@ -500,3 +500,263 @@ export function validateContactPreference(body) {
   }
   return { email, fallback_contact_type: type, fallback_contact_value: rawValue };
 }
+
+const LANDING_BLOCK_TYPES = new Set(['header', 'login_tiles', 'announcement', 'rich_text']);
+const ANNOUNCEMENT_TONES = new Set(['info', 'warning']);
+const HTML_LIKE = /<\/?[a-z][\s\S]*>/i;
+const URL_LIKE = /https?:\/\/|www\.|href\s*=/i;
+
+function readRequiredText(value, details, field, label, { max = 500 } = {}) {
+  if (typeof value !== 'string' || !value.trim()) {
+    details.push({ field, message: `${label} is required` });
+    return undefined;
+  }
+  const text = value.trim();
+  if (text.length > max) {
+    details.push({ field, message: `${label} must be ${max} characters or fewer` });
+    return undefined;
+  }
+  return text;
+}
+
+function readLogoUrl(value, details) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') {
+    details.push({ field: 'logo_url', message: 'Logo URL must be an http or https link, or null' });
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > 500) {
+    details.push({ field: 'logo_url', message: 'Logo URL must be 500 characters or fewer' });
+    return undefined;
+  }
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    details.push({ field: 'logo_url', message: 'Logo URL must be an http or https link, or null' });
+    return undefined;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    details.push({ field: 'logo_url', message: 'Logo URL must be an http or https link, or null' });
+    return undefined;
+  }
+  return trimmed;
+}
+
+function assertNoUrls(text, details, field, label) {
+  if (text == null) return;
+  if (URL_LIKE.test(text)) {
+    details.push({ field, message: `${label} cannot include links` });
+  }
+}
+
+function assertNoHtml(text, details, field, label) {
+  if (text == null) return;
+  if (HTML_LIKE.test(text)) {
+    details.push({ field, message: `${label} cannot include HTML` });
+  }
+}
+
+function requireContentObject(content, details) {
+  if (content === null || typeof content !== 'object' || Array.isArray(content)) {
+    details.push({ field: 'content', message: 'Content must be a JSON object' });
+    return null;
+  }
+  return content;
+}
+
+function assertContentKeys(content, keys, details) {
+  const extra = Object.keys(content).filter((key) => !keys.includes(key));
+  if (extra.length) {
+    details.push({ field: 'content', message: `Unknown content field: ${extra[0]}` });
+  }
+}
+
+export function validateLandingBlockContent(blockType, content) {
+  const details = [];
+  const data = requireContentObject(content, details);
+  if (!data) fail(details);
+
+  if (blockType === 'header') {
+    assertContentKeys(data, ['school_name', 'welcome_text', 'logo_url'], details);
+    const schoolName = readRequiredText(data.school_name, details, 'school_name', 'School name', { max: 200 });
+    const welcomeText = readRequiredText(data.welcome_text, details, 'welcome_text', 'Welcome text', { max: 500 });
+    const logoUrl = Object.prototype.hasOwnProperty.call(data, 'logo_url')
+      ? readLogoUrl(data.logo_url, details)
+      : null;
+    if (details.length) fail(details);
+    return { school_name: schoolName, welcome_text: welcomeText, logo_url: logoUrl };
+  }
+
+  if (blockType === 'login_tiles') {
+    assertContentKeys(data, [
+      'parent_label', 'parent_description', 'teacher_label', 'teacher_description',
+    ], details);
+    const parentLabel = readRequiredText(data.parent_label, details, 'parent_label', 'Parent label', { max: 100 });
+    const parentDescription = readRequiredText(
+      data.parent_description, details, 'parent_description', 'Parent description', { max: 300 },
+    );
+    const teacherLabel = readRequiredText(data.teacher_label, details, 'teacher_label', 'Teacher label', { max: 100 });
+    const teacherDescription = readRequiredText(
+      data.teacher_description, details, 'teacher_description', 'Teacher description', { max: 300 },
+    );
+    assertNoUrls(parentLabel, details, 'parent_label', 'Parent label');
+    assertNoUrls(parentDescription, details, 'parent_description', 'Parent description');
+    assertNoUrls(teacherLabel, details, 'teacher_label', 'Teacher label');
+    assertNoUrls(teacherDescription, details, 'teacher_description', 'Teacher description');
+    if (details.length) fail(details);
+    return {
+      parent_label: parentLabel,
+      parent_description: parentDescription,
+      teacher_label: teacherLabel,
+      teacher_description: teacherDescription,
+    };
+  }
+
+  if (blockType === 'announcement') {
+    assertContentKeys(data, ['message', 'tone'], details);
+    const message = readRequiredText(data.message, details, 'message', 'Message', { max: 1000 });
+    assertNoHtml(message, details, 'message', 'Message');
+    let tone;
+    if (typeof data.tone !== 'string' || !ANNOUNCEMENT_TONES.has(data.tone)) {
+      details.push({ field: 'tone', message: 'Tone must be info or warning' });
+    } else {
+      tone = data.tone;
+    }
+    if (details.length) fail(details);
+    return { message, tone };
+  }
+
+  if (blockType === 'rich_text') {
+    assertContentKeys(data, ['text'], details);
+    const text = readRequiredText(data.text, details, 'text', 'Text', { max: 5000 });
+    assertNoHtml(text, details, 'text', 'Text');
+    if (details.length) fail(details);
+    return { text };
+  }
+
+  throw new ValidationError('Unknown block type', [
+    { field: 'block_type', message: 'Unknown block type' },
+  ]);
+}
+
+function readPosition(value, details, required = false) {
+  if (value === undefined || value === null) {
+    if (required) {
+      details.push({ field: 'position', message: 'Position must be a whole number from 0 upward' });
+    }
+    return undefined;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || !Number.isSafeInteger(value)) {
+    details.push({ field: 'position', message: 'Position must be a whole number from 0 upward' });
+    return undefined;
+  }
+  return value;
+}
+
+function readVisible(value, details) {
+  if (typeof value !== 'boolean') {
+    details.push({ field: 'visible', message: 'Visible must be true or false' });
+    return undefined;
+  }
+  return value;
+}
+
+export function validateLandingBlockCreate(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['block_type', 'content', 'position', 'visible']);
+  const details = [];
+  let blockType;
+  if (typeof data.block_type !== 'string' || !LANDING_BLOCK_TYPES.has(data.block_type)) {
+    details.push({
+      field: 'block_type',
+      message: 'Block type must be header, login_tiles, announcement, or rich_text',
+    });
+  } else {
+    blockType = data.block_type;
+  }
+  const position = readPosition(data.position, details, false);
+  let visible = true;
+  if (Object.prototype.hasOwnProperty.call(data, 'visible')) {
+    const parsed = readVisible(data.visible, details);
+    if (parsed !== undefined) visible = parsed;
+  }
+  let content;
+  if (blockType) {
+    try {
+      content = validateLandingBlockContent(blockType, data.content);
+    } catch (error) {
+      if (error instanceof ValidationError && error.details) {
+        details.push(...error.details);
+      } else {
+        throw error;
+      }
+    }
+  } else if (!Object.prototype.hasOwnProperty.call(data, 'content')) {
+    details.push({ field: 'content', message: 'Content must be a JSON object' });
+  }
+  if (details.length) fail(details);
+  const result = { block_type: blockType, content, visible };
+  if (position !== undefined) result.position = position;
+  return result;
+}
+
+export function validateLandingBlockPatch(body, blockType) {
+  const data = requireObject(body);
+  assertAllowed(data, ['content', 'visible', 'position']);
+  const details = [];
+  const patch = {};
+  if (Object.prototype.hasOwnProperty.call(data, 'content')) {
+    try {
+      patch.content = validateLandingBlockContent(blockType, data.content);
+    } catch (error) {
+      if (error instanceof ValidationError && error.details) {
+        details.push(...error.details);
+      } else {
+        throw error;
+      }
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'visible')) {
+    const visible = readVisible(data.visible, details);
+    if (visible !== undefined) patch.visible = visible;
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'position')) {
+    const position = readPosition(data.position, details, true);
+    if (position !== undefined) patch.position = position;
+  }
+  if (!details.length && Object.keys(patch).length === 0) {
+    details.push({ field: 'body', message: 'No fields to update' });
+  }
+  if (details.length) fail(details);
+  return patch;
+}
+
+export function validateLandingBlockReorder(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['ordered_ids']);
+  if (!Array.isArray(data.ordered_ids) || data.ordered_ids.length === 0) {
+    throw new ValidationError('ordered_ids must be a non-empty array', [
+      { field: 'ordered_ids', message: 'ordered_ids must be a non-empty array' },
+    ]);
+  }
+  const orderedIds = [];
+  const seen = new Set();
+  data.ordered_ids.forEach((value, index) => {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || !Number.isSafeInteger(value)) {
+      throw new ValidationError('Each ordered id must be a positive integer', [
+        { field: `ordered_ids.${index}`, message: 'Each ordered id must be a positive integer' },
+      ]);
+    }
+    if (seen.has(value)) {
+      throw new ValidationError('ordered_ids must not contain duplicates', [
+        { field: 'ordered_ids', message: 'ordered_ids must not contain duplicates' },
+      ]);
+    }
+    seen.add(value);
+    orderedIds.push(value);
+  });
+  return { ordered_ids: orderedIds };
+}

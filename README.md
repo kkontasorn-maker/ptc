@@ -2,7 +2,7 @@
 
 Admin core for Nakornpayap International School parent-teacher conferences. IT sets up a conference, assigns teachers to services, and opens booking when the schedule is ready. Parents do not see a conference until it is open.
 
-This server has the admin core, parent email verification, booking submission, and the teacher agenda. The landing-page editor is not in this server.
+This server has the admin core, parent email verification, booking submission, the teacher agenda, and the landing-page blocks API. The public landing UI and CMS editor screens are not in this slice.
 
 ## Run
 
@@ -144,9 +144,40 @@ After a parent verifies their email, the verify page asks for an optional LINE I
 
 Webhook delivery updates are `POST /api/v1/webhooks/email-status`. The route does not use a staff session. It checks `EMAIL_WEBHOOK_PROVIDER` and `EMAIL_WEBHOOK_SECRET`. Until both are set, the route returns 401. Adapters are `hmac`, `postmark`, `mailgun`, `sendgrid`, and `ses`. See `.env.example` for the header and body each one expects. A signed event with an unknown message id still returns 200.
 
+## Landing page blocks
+
+Editable landing-page content is stored in `landing_page_blocks` (`header`, `login_tiles`, `announcement`, `rich_text`). Fresh databases get the default header and login tiles from `db/schema.sql`. Existing databases get the table (and those two seed rows when empty) on startup via `src/db.js`.
+
+Public list returns visible blocks only, ordered by `position`, with `content` parsed as JSON. Admin CRUD is `it_admin` only — `front_office` gets `403`.
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/landing-page/blocks` | public |
+| GET | `/api/v1/admin/landing-page/blocks` | it_admin |
+| POST | `/api/v1/admin/landing-page/blocks` | it_admin |
+| PATCH | `/api/v1/admin/landing-page/blocks/:id` | it_admin |
+| PATCH | `/api/v1/admin/landing-page/blocks/reorder` | it_admin |
+| DELETE | `/api/v1/admin/landing-page/blocks/:id` | it_admin |
+
+```bash
+curl -s http://127.0.0.1:47231/api/v1/landing-page/blocks
+
+curl -s -b cookies.txt -X POST http://127.0.0.1:47231/api/v1/admin/landing-page/blocks \
+  -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"block_type":"announcement","content":{"message":"Booking opens Monday","tone":"info"}}'
+
+curl -s -b cookies.txt -X PATCH http://127.0.0.1:47231/api/v1/admin/landing-page/blocks/reorder \
+  -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"ordered_ids":[3,1,2]}'
+```
+
+`login_tiles` content has no URLs — frontend links stay hardcoded. `rich_text` / announcement message reject HTML-looking markup.
+
 ## Not in this slice
 
 - `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route
 - `GET /bookings/lookup`
 - Custom fields
-- Landing-page sections
+- Public landing UI and CMS editor screens

@@ -140,3 +140,21 @@ CREATE TABLE parent_contact_preferences (
   fallback_contact_value TEXT,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Editable landing-page stack (§6 patterns; block naming from product DDL).
+-- Seed INSERT runs only with this fresh-schema apply; startup migration seeds
+-- existing databases when the table is empty.
+CREATE TABLE landing_page_blocks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  block_type TEXT NOT NULL CHECK (block_type IN ('header','login_tiles','announcement','rich_text')),
+  position INTEGER NOT NULL,
+  content TEXT NOT NULL DEFAULT '{}',
+  visible INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX idx_landing_blocks_position ON landing_page_blocks(position);
+
+INSERT INTO landing_page_blocks (block_type, position, content) VALUES
+  ('header', 0, '{"school_name":"Nakornpayap International School","welcome_text":"Welcome to Parent-Teacher Conferences","logo_url":null}'),
+  ('login_tiles', 1, '{"parent_label":"Parent / Student","parent_description":"Verify your email to book a conference time.","teacher_label":"Teacher / Staff","teacher_description":"Sign in to manage your schedule."}');

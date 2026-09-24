@@ -13,6 +13,7 @@ import { AvailabilityRepository } from './repositories/AvailabilityRepository.js
 import { BookingRepository } from './repositories/BookingRepository.js';
 import { VerificationRepository } from './repositories/VerificationRepository.js';
 import { NotificationRepository } from './repositories/NotificationRepository.js';
+import { LandingPageRepository } from './repositories/LandingPageRepository.js';
 import { createAuthRoutes } from './routes/auth.js';
 import { createEventRoutes } from './routes/events.js';
 import { createServiceRoutes } from './routes/services.js';
@@ -24,6 +25,7 @@ import { createParentRoutes } from './routes/parents.js';
 import { createBookingRoutes } from './routes/bookings.js';
 import { createIntegrationRoutes } from './routes/integrations.js';
 import { createNotificationRoutes } from './routes/notifications.js';
+import { createLandingPageRoutes } from './routes/landing-page.js';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -78,6 +80,7 @@ export function createApp(config) {
     bookings: new BookingRepository(db),
     verifications: new VerificationRepository(db),
     notifications: new NotificationRepository(db),
+    landingPage: new LandingPageRepository(db),
   };
   const mail = config.mail || { configured: false };
   mail.recordDelivery = (row) => {
@@ -132,6 +135,7 @@ export function createApp(config) {
     webhook: config.webhook,
     staleHours: config.deliveryIssueStaleHours,
   }));
+  api.use(createLandingPageRoutes({ repos }));
   api.use((req, res) => {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
   });
