@@ -360,6 +360,7 @@ export function validateBookingCreate(body, timeZone) {
     'parent_first_name',
     'parent_last_name',
     'picks',
+    'custom_field_values',
   ]);
   const details = [];
   let parentEmail;
@@ -433,6 +434,7 @@ export function validateBookingCreate(body, timeZone) {
       }
     });
   }
+  const customFieldValues = readCustomFieldValues(data.custom_field_values, details);
   if (details.length) fail(details);
   return {
     parent_email: parentEmail,
@@ -441,7 +443,102 @@ export function validateBookingCreate(body, timeZone) {
     parent_first_name: parentFirst,
     parent_last_name: parentLast,
     picks,
+    custom_field_values: customFieldValues,
   };
+}
+
+function readCustomFieldValues(raw, details) {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    details.push({
+      field: 'custom_field_values',
+      message: 'custom_field_values must be an array',
+    });
+    return [];
+  }
+  const values = [];
+  const seen = new Set();
+  raw.forEach((item, index) => {
+    const field = `custom_field_values.${index}`;
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+      details.push({ field, message: 'Each custom field value must be an object' });
+      return;
+    }
+    const extra = Object.keys(item).filter((key) => !['field_id', 'value'].includes(key));
+    if (extra.length) {
+      details.push({ field, message: `Unknown field: ${extra[0]}` });
+      return;
+    }
+    const fieldId = readPositiveInt(item.field_id, details, field, 'Custom field');
+    if (typeof item.value !== 'string') {
+      details.push({ field, message: 'Value must be a string of 500 characters or fewer' });
+      return;
+    }
+    if (item.value.length > 500) {
+      details.push({ field, message: 'Value must be 500 characters or fewer' });
+      return;
+    }
+    if (fieldId) {
+      if (seen.has(fieldId)) {
+        details.push({ field, message: 'Each custom field may be answered only once' });
+        return;
+      }
+      seen.add(fieldId);
+      values.push({ field_id: fieldId, value: item.value });
+    }
+  });
+  return values;
+}
+
+export function validateCustomFieldCreate(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['label', 'required', 'position']);
+  const details = [];
+  const label = readName(data.label, details, 'label', 'Label');
+  let required = false;
+  if (Object.prototype.hasOwnProperty.call(data, 'required')) {
+    if (typeof data.required !== 'boolean') {
+      details.push({ field: 'required', message: 'Required must be true or false' });
+    } else {
+      required = data.required;
+    }
+  }
+  const position = readPosition(data.position, details, false);
+  if (details.length) fail(details);
+  const result = { label, required };
+  if (position !== undefined) result.position = position;
+  return result;
+}
+
+export function validateCustomFieldPatch(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['label', 'required', 'position']);
+  const details = [];
+  const patch = {};
+  if (Object.prototype.hasOwnProperty.call(data, 'label')) {
+    const label = readName(data.label, details, 'label', 'Label');
+    if (label) patch.label = label;
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'required')) {
+    if (typeof data.required !== 'boolean') {
+      details.push({ field: 'required', message: 'Required must be true or false' });
+    } else {
+      patch.required = data.required;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'position')) {
+    const position = readPosition(data.position, details, true);
+    if (position !== undefined) patch.position = position;
+  }
+  if (!details.length && Object.keys(patch).length === 0) {
+    details.push({ field: 'body', message: 'No fields to update' });
+  }
+  if (details.length) fail(details);
+  return patch;
+}
+
+export function validateCustomFieldReorder(body) {
+  return validateLandingBlockReorder(body);
 }
 
 export function validateReschedule(body, timeZone) {

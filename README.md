@@ -2,7 +2,7 @@
 
 Admin core for Nakornpayap International School parent-teacher conferences. IT sets up a conference, assigns teachers to services, and opens booking when the schedule is ready. Parents do not see a conference until it is open.
 
-This server has the admin core, parent email verification, booking submission, the teacher agenda, the landing-page blocks API, the public landing page, and the IT-admin landing editor.
+This server has the admin core, parent email verification, booking submission, the teacher agenda, the landing-page blocks API, the public landing page, the IT-admin landing editor, and per-event custom booking fields.
 
 ## Run
 
@@ -180,8 +180,23 @@ curl -s -b cookies.txt -X PATCH http://127.0.0.1:47231/api/v1/admin/landing-page
 - Public landing: [Home](http://127.0.0.1:47231/#/) — `GET /api/v1/landing-page/blocks`, renders visible blocks in order
 - IT admin editor: [Landing page](http://127.0.0.1:47231/#/landing-page) — nav entry for `it_admin` only; add, edit, show/hide, reorder (up/down), delete
 
+## Custom booking fields
+
+IT admins define optional text questions per event. Answers are stored once per booking batch (`booking_batch_custom_values`), not per individual booking row.
+
+**CASCADE:** deleting a `custom_field_definitions` row deletes that field’s historical answers (`ON DELETE CASCADE`). Startup creates both tables when missing.
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/v1/events/:eventId/custom-fields` | it_admin, front_office |
+| POST | `/api/v1/events/:eventId/custom-fields` | it_admin |
+| PATCH | `/api/v1/events/:eventId/custom-fields/:id` | it_admin |
+| PATCH | `/api/v1/events/:eventId/custom-fields/reorder` | it_admin |
+| DELETE | `/api/v1/events/:eventId/custom-fields/:id` | it_admin |
+
+`POST /api/v1/bookings` accepts optional `custom_field_values: [{ field_id, value }]` (value ≤ 500 chars). Unknown `field_id` or a missing required field returns `400`. Values are saved in the same SQLite transaction as the booking claim. `GET /events/:eventId/parent-view` includes `custom_field_definitions`. The bookings report includes each row’s batch `custom_field_values`.
+
 ## Not in this slice
 
 - `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route
 - `GET /bookings/lookup`
-- Custom fields

@@ -86,6 +86,9 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
     if (!event) throw new NotFoundError('Event not found');
     const rows = repos.bookings.listForReport(eventId);
     const rooms = await resolveBookingRooms(psapi, rows);
+    const valuesByBatch = repos.customFields.valuesForBatches(
+      rows.map((row) => row.booking_batch_id),
+    );
     res.json({
       event: presentEvent(event, timeZone),
       bookings: rows.map((row, index) => ({
@@ -111,6 +114,7 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
         display_name: row.display_name,
         room: rooms[index],
         location: locationLabel(rooms[index]),
+        custom_field_values: valuesByBatch.get(row.booking_batch_id) || [],
       })),
     });
   }));
@@ -148,6 +152,35 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
       prepared.push({ pick, assignment });
     }
     assertBeforeCutoff(event, timeZone);
+
+    const fieldDefs = repos.customFields.listForEvent(event.id);
+    const byFieldId = new Map(fieldDefs.map((field) => [field.id, field]));
+    const submitted = input.custom_field_values;
+    for (const item of submitted) {
+      if (!byFieldId.has(item.field_id)) {
+        throw new ValidationError('Unknown custom field for this conference', [{
+          field: 'custom_field_values',
+          message: 'Unknown custom field for this conference',
+        }]);
+      }
+    }
+    const submittedIds = new Set(submitted.map((item) => item.field_id));
+    for (const field of fieldDefs) {
+      if (!field.required) continue;
+      if (!submittedIds.has(field.id)) {
+        throw new ValidationError(`"${field.label}" is required`, [{
+          field: 'custom_field_values',
+          message: `"${field.label}" is required`,
+        }]);
+      }
+      const answer = submitted.find((item) => item.field_id === field.id);
+      if (!answer || !String(answer.value).trim()) {
+        throw new ValidationError(`"${field.label}" is required`, [{
+          field: 'custom_field_values',
+          message: `"${field.label}" is required`,
+        }]);
+      }
+    }
 
     const students = await guardianStudents(psapi, input.parent_email);
     if (students.length === 0) throw new NoStudentMatchError();
@@ -192,7 +225,15 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
       };
     });
 
-    const saved = repos.bookings.claim(items, { timeZone, availability: repos.availability });
+    const saved = repos.bookings.claim(items, {
+      timeZone,
+      availability: repos.availability,
+      afterClaim: () => {
+        if (submitted.length > 0) {
+          repos.customFields.saveBatchValues(batchId, submitted);
+        }
+      },
+    });
     const meta = new Map(items.map((item) => [`${item.staff_id}:${item.service_id}:${item.start_time}`, item]));
     res.status(201).json({
       booking_batch_id: batchId,
@@ -200,6 +241,9 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
         const item = meta.get(`${row.staff_id}:${row.service_id}:${row.start_time}`);
         return presentBooking(row, { displayName: item.display_name, room: item.room });
       }),
+      custom_field_values: submitted.length > 0
+        ? repos.customFields.valuesForBatch(batchId)
+        : [],
     });
   }));
 

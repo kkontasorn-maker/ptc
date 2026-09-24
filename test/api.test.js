@@ -146,8 +146,10 @@ describe('admin API', { concurrency: false }, () => {
     `).all().map((row) => row.name);
     assert.deepEqual(tables, [
       'availability_blocks',
+      'booking_batch_custom_values',
       'booking_conflict_log',
       'bookings',
+      'custom_field_definitions',
       'device_verifications',
       'email_deliveries',
       'events',
@@ -168,11 +170,14 @@ describe('admin API', { concurrency: false }, () => {
     assert.deepEqual(overlap, ['staff_id', 'event_id', 'start_time']);
     assert.deepEqual(indexes, [
       'idx_avail_staff_event',
+      'idx_batch_custom_values_batch',
       'idx_booking_conflict_log_booking',
       'idx_bookings_batch',
       'idx_bookings_email_event',
       'idx_bookings_no_overlap',
       'idx_bookings_staff_event',
+      'idx_custom_field_defs_event',
+      'idx_custom_field_defs_event_position',
       'idx_device_verifications_lookup',
       'idx_email_deliveries_recipient',
       'idx_email_deliveries_status',

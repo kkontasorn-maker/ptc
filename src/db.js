@@ -24,7 +24,35 @@ export function openDatabase(dbPath, schemaPath) {
   ensureNotificationSchema(db);
   ensureBookingOverlapIndex(db);
   ensureLandingPageSchema(db);
+  ensureCustomFieldSchema(db);
   return db;
+}
+
+function ensureCustomFieldSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS custom_field_definitions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+      label TEXT NOT NULL,
+      required INTEGER NOT NULL DEFAULT 0,
+      position INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_custom_field_defs_event
+      ON custom_field_definitions(event_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_field_defs_event_position
+      ON custom_field_definitions(event_id, position);
+
+    CREATE TABLE IF NOT EXISTS booking_batch_custom_values (
+      booking_batch_id TEXT NOT NULL,
+      field_id INTEGER NOT NULL REFERENCES custom_field_definitions(id) ON DELETE CASCADE,
+      value TEXT NOT NULL,
+      PRIMARY KEY (booking_batch_id, field_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_batch_custom_values_batch
+      ON booking_batch_custom_values(booking_batch_id);
+  `);
 }
 
 function ensureLandingPageSchema(db) {

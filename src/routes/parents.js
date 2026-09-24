@@ -45,14 +45,24 @@ export function createParentRoutes({ repos, psapi, timeZone }) {
       throw new NotFoundError('Event not found');
     }
     const students = await matchedStudents(psapi, email);
-    res.json(buildParentView({
+    const view = buildParentView({
       students,
       schedule: repos.staff.listSchedule(eventId),
       bookableBlocks: repos.availability.listBookableForEvent(eventId),
       bookings: repos.bookings.listConfirmedForEvent(eventId),
       parentEmail: email,
       timeZone,
-    }));
+    });
+    res.json({
+      ...view,
+      custom_field_definitions: repos.customFields.listForEvent(eventId).map((field) => ({
+        id: field.id,
+        event_id: field.event_id,
+        label: field.label,
+        required: field.required,
+        position: field.position,
+      })),
+    });
   }));
 
   return router;

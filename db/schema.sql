@@ -158,3 +158,26 @@ CREATE UNIQUE INDEX idx_landing_blocks_position ON landing_page_blocks(position)
 INSERT INTO landing_page_blocks (block_type, position, content) VALUES
   ('header', 0, '{"school_name":"Nakornpayap International School","welcome_text":"Welcome to Parent-Teacher Conferences","logo_url":null}'),
   ('login_tiles', 1, '{"parent_label":"Parent / Student","parent_description":"Verify your email to book a conference time.","teacher_label":"Teacher / Staff","teacher_description":"Sign in to manage your schedule."}');
+
+-- IT-admin custom text fields for a conference visit (per event).
+-- Deleting a definition CASCADE-deletes historical batch answers for that field.
+CREATE TABLE custom_field_definitions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  required INTEGER NOT NULL DEFAULT 0,
+  position INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_custom_field_defs_event ON custom_field_definitions(event_id);
+CREATE UNIQUE INDEX idx_custom_field_defs_event_position
+  ON custom_field_definitions(event_id, position);
+
+CREATE TABLE booking_batch_custom_values (
+  booking_batch_id TEXT NOT NULL,
+  field_id INTEGER NOT NULL REFERENCES custom_field_definitions(id) ON DELETE CASCADE,
+  value TEXT NOT NULL,
+  PRIMARY KEY (booking_batch_id, field_id)
+);
+CREATE INDEX idx_batch_custom_values_batch ON booking_batch_custom_values(booking_batch_id);

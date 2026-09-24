@@ -248,13 +248,15 @@ export class BookingRepository {
     return this.overlapStmt.get(staffId, eventId, rangeEnd, rangeStart, excludeId).n;
   }
 
-  claim(items, { timeZone, availability }) {
+  claim(items, { timeZone, availability, afterClaim }) {
     const run = this.db.transaction(() => {
       for (const item of items) {
         this.assertSlotOpen(item, { timeZone, availability, excludeId: null });
         this.insertStmt.run(item);
       }
-      return this.listByBatch(items[0].booking_batch_id);
+      const saved = this.listByBatch(items[0].booking_batch_id);
+      if (typeof afterClaim === 'function') afterClaim(saved);
+      return saved;
     });
     return this.runImmediate(run);
   }
