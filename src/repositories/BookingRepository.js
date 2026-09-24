@@ -40,7 +40,7 @@ export class BookingRepository {
     this.db = db;
     this.confirmedForEventStmt = db.prepare(`
       SELECT id, event_id, service_id, staff_id, start_time, end_time,
-             student_powerschool_id, parent_email
+             student_powerschool_id, parent_email, parent_relationship
       FROM bookings
       WHERE event_id = ? AND status = 'confirmed'
       ORDER BY start_time ASC, id ASC
@@ -175,6 +175,7 @@ export class BookingRepository {
       end_time: row.end_time,
       student_powerschool_id: row.student_powerschool_id,
       parent_email: String(row.parent_email || '').trim().toLowerCase(),
+      parent_relationship: row.parent_relationship,
     }));
   }
 

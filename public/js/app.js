@@ -726,6 +726,7 @@ function BookingScreen({ eventId }) {
             ${(child?.teachers || []).map((teacher) => html`<article className="card teacher-card" key=${`${teacher.staff_id}-${teacher.service_id}`}>
               <h2>${teacher.display_name}</h2>
               <p className="muted">${teacher.room ? `Room ${teacher.room}` : 'Room not set'}</p>
+              ${teacher.booked_by_other_guardian ? html`<${QuietLock} message=${`Already booked — ${teacher.booked_by_other_guardian.relationship}, ${formatClock(teacher.booked_by_other_guardian.start_time)}.`} />` : null}
               <div className="slot-grid">
                 ${teacher.slots.map((slot) => {
                   const key = `${child.student_powerschool_id}|${teacher.staff_id}|${teacher.service_id}|${slot.start_time}`;

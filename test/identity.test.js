@@ -316,6 +316,7 @@ describe('parent identity', { concurrency: false }, () => {
     assert.equal(aroon.service_id, serviceId);
     assert.equal(aroon.slot_duration_minutes, 30);
     assert.equal(aroon.already_booked, null);
+    assert.equal(aroon.booked_by_other_guardian, null);
     assert.deepEqual(aroon.slots, [
       { start_time: `${future}T08:00:00+07:00`, end_time: `${future}T08:30:00+07:00`, available: true },
       { start_time: `${future}T08:30:00+07:00`, end_time: `${future}T09:00:00+07:00`, available: true },
@@ -323,9 +324,11 @@ describe('parent identity', { concurrency: false }, () => {
     assert.equal(niran.teachers[1].room, '118');
     assert.deepEqual(niran.teachers[1].slots, []);
     assert.equal(niran.teachers[1].already_booked, null);
+    assert.equal(niran.teachers[1].booked_by_other_guardian, null);
     assert.equal(malee.teachers[0].display_name, 'Priya Nair');
     assert.equal(malee.teachers[0].room, '112');
     assert.equal(malee.teachers[0].already_booked, null);
+    assert.equal(malee.teachers[0].booked_by_other_guardian, null);
 
     const slot = aroon.slots[0];
     const bookingId = Number(db.prepare(`
@@ -351,6 +354,12 @@ describe('parent identity', { concurrency: false }, () => {
       start_time: slot.start_time,
       end_time: slot.end_time,
     });
+    assert.deepEqual(updated.booked_by_other_guardian, {
+      relationship: 'father',
+      start_time: aroon.slots[1].start_time,
+      end_time: aroon.slots[1].end_time,
+    });
+    assert.equal(JSON.stringify(booked.json).includes('other@example.com'), false);
 
     const gone = await api('/api/v1/events/999999/parent-view?email=parent@nis.ac.th', { cookie: parentDevice });
     assert.equal(gone.status, 404);

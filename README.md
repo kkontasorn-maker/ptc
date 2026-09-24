@@ -25,7 +25,7 @@ Sign in with an email from `config/roles.json`. The server assigns the role. The
 
 Google Workspace sign-in is used when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set. Until then, the email form above is the local fallback and does not check a password. Set `ALLOW_LOCAL_AUTH=false` once Google is configured.
 
-PowerSchool teacher sync and guardian lookup use the built-in stand-in lists until `PSAPI_BASE_URL`, `PSAPI_CLIENT_ID`, and `PSAPI_CLIENT_SECRET` are set. The stand-in guardian is `parent@nis.ac.th` (Niran Srisuk, grade 5, and Malee Srisuk, grade 2). See `.env.example`.
+PowerSchool teacher sync and guardian lookup use the built-in stand-in lists until `PSAPI_BASE_URL`, `PSAPI_CLIENT_ID`, and `PSAPI_CLIENT_SECRET` are set. The stand-in guardians are `parent@nis.ac.th` and `father@example.com` (both match Niran Srisuk, grade 5, and Malee Srisuk, grade 2). See `.env.example`.
 
 Sign in as `it.admin@nis.ac.th` and open Conferences. The PowerSchool card shows whether the last live call succeeded, and **Test connection** runs one small students query. The page load does not call PowerSchool. Credentials stay in the server environment; the card and the status routes never accept or return them.
 

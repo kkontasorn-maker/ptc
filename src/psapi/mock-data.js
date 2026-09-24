@@ -1,5 +1,4 @@
-export const MOCK_GUARDIANS = {
-  'parent@nis.ac.th': [
+const srisukChildren = [
     {
       student_powerschool_id: 'S1001',
       name: 'Niran Srisuk',
@@ -19,7 +18,11 @@ export const MOCK_GUARDIANS = {
         { powerschool_teacher_id: 'T1004', room: '112' },
       ],
     },
-  ],
+];
+
+export const MOCK_GUARDIANS = {
+  'parent@nis.ac.th': srisukChildren,
+  'father@example.com': srisukChildren,
 };
 
 export const MOCK_TEACHERS = [

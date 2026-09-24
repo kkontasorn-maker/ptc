@@ -8,16 +8,32 @@ function roomFor(assignment, teacherRoom) {
   return teacherRoom || null;
 }
 
-function alreadyBooked(bookings, { staffId, serviceId, studentId, parentEmail }) {
-  const matches = bookings.filter((booking) => booking.staff_id === staffId
+function matchingBookings(bookings, { staffId, serviceId, studentId, parentEmail, own }) {
+  return bookings.filter((booking) => booking.staff_id === staffId
     && booking.service_id === serviceId
     && booking.student_powerschool_id === studentId
-    && booking.parent_email === parentEmail);
+    && (own ? booking.parent_email === parentEmail : booking.parent_email !== parentEmail));
+}
+
+function alreadyBooked(bookings, key) {
+  const matches = matchingBookings(bookings, { ...key, own: true });
   if (matches.length === 0) return null;
   matches.sort((a, b) => a.start_time.localeCompare(b.start_time) || a.id - b.id);
   const first = matches[0];
   return {
     booking_id: first.id,
+    start_time: first.start_time,
+    end_time: first.end_time,
+  };
+}
+
+function bookedByOtherGuardian(bookings, key) {
+  const matches = matchingBookings(bookings, { ...key, own: false });
+  if (matches.length === 0) return null;
+  matches.sort((a, b) => a.start_time.localeCompare(b.start_time) || a.id - b.id);
+  const first = matches[0];
+  return {
+    relationship: first.parent_relationship,
     start_time: first.start_time,
     end_time: first.end_time,
   };
@@ -60,6 +76,12 @@ export function buildParentView({
           timeZone,
         ),
         already_booked: alreadyBooked(bookings, {
+          staffId: assignment.staff_id,
+          serviceId: assignment.service_id,
+          studentId: student.student_powerschool_id,
+          parentEmail,
+        }),
+        booked_by_other_guardian: bookedByOtherGuardian(bookings, {
           staffId: assignment.staff_id,
           serviceId: assignment.service_id,
           studentId: student.student_powerschool_id,

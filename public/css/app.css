@@ -404,6 +404,8 @@ select.input {
   font-size: 14px;
 }
 
+.teacher-card .lock-row { margin-top: 10px; }
+
 .lock-icon { width: 16px; height: 16px; flex: none; }
 
 .inline-form { display: flex; gap: 8px; align-items: center; }

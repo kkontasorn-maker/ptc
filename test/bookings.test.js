@@ -533,4 +533,107 @@ describe('booking submission', { concurrency: false }, () => {
       WHERE staff_id = ? AND event_id = ? AND start_time = ? AND status = 'confirmed'
     `).get(aroonId, first.id, slot.start_time).n, 1);
   });
+
+  test('shows another guardian’s booking without their identity, and still allows a second slot', async () => {
+    const event = await api('/api/v1/events', {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { name: 'Shared conferences', event_date: future },
+    });
+    assert.equal(event.status, 201, JSON.stringify(event.json));
+    const sharedId = event.json.event.id;
+    const service = await api(`/api/v1/events/${sharedId}/services`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { name: 'Elementary', slot_duration_minutes: 15 },
+    });
+    const sharedServiceId = service.json.service.id;
+    await api(`/api/v1/services/${sharedServiceId}/staff`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { staff_id: aroonId },
+    });
+    const block = await api(`/api/v1/events/${sharedId}/staff/${aroonId}/availability`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { start_time: `${future}T14:00`, end_time: `${future}T14:30`, block_type: 'bookable' },
+    });
+    assert.equal(block.status, 201, JSON.stringify(block.json));
+    const opened = await api(`/api/v1/events/${sharedId}`, {
+      method: 'PATCH',
+      cookie: adminCookie,
+      body: { is_open_for_booking: true },
+    });
+    assert.equal(opened.status, 200, JSON.stringify(opened.json));
+
+    const motherView = await api(`/api/v1/events/${sharedId}/parent-view?email=parent@nis.ac.th`, { cookie: parentCookie });
+    const slots = motherView.json.children[0].teachers.find((teacher) => teacher.staff_id === aroonId).slots;
+    const firstSlot = slots[0];
+    const secondSlot = slots[1];
+    const mother = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: parentCookie,
+      body: {
+        parent_email: 'parent@nis.ac.th',
+        parent_relationship: 'mother',
+        parent_first_name: 'Suda',
+        parent_last_name: 'Panya',
+        picks: [{
+          student_powerschool_id: 'S1001',
+          service_id: sharedServiceId,
+          staff_id: aroonId,
+          start_time: firstSlot.start_time,
+          end_time: firstSlot.end_time,
+        }],
+      },
+    });
+    assert.equal(mother.status, 201, JSON.stringify(mother.json));
+
+    const own = await api(`/api/v1/events/${sharedId}/parent-view?email=parent@nis.ac.th`, { cookie: parentCookie });
+    const ownTeacher = own.json.children[0].teachers.find((teacher) => teacher.staff_id === aroonId);
+    assert.deepEqual(ownTeacher.already_booked, {
+      booking_id: mother.json.bookings[0].id,
+      start_time: firstSlot.start_time,
+      end_time: firstSlot.end_time,
+    });
+    assert.equal(ownTeacher.booked_by_other_guardian, null);
+
+    const fatherCookie = await verify('father@example.com');
+    const other = await api(`/api/v1/events/${sharedId}/parent-view?email=father@example.com`, { cookie: fatherCookie });
+    assert.equal(other.status, 200, JSON.stringify(other.json));
+    const otherTeacher = other.json.children[0].teachers.find((teacher) => teacher.staff_id === aroonId);
+    assert.equal(otherTeacher.already_booked, null);
+    assert.deepEqual(otherTeacher.booked_by_other_guardian, {
+      relationship: 'mother',
+      start_time: firstSlot.start_time,
+      end_time: firstSlot.end_time,
+    });
+    const body = JSON.stringify(other.json);
+    assert.equal(body.includes('parent@nis.ac.th'), false);
+    assert.equal(body.includes('Suda'), false);
+    assert.equal(body.includes('Panya'), false);
+    assert.equal(body.includes('booking_id'), false);
+    assert.equal(Object.keys(otherTeacher.booked_by_other_guardian).sort().join(','), 'end_time,relationship,start_time');
+
+    const second = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: fatherCookie,
+      body: {
+        parent_email: 'father@example.com',
+        parent_relationship: 'father',
+        picks: [{
+          student_powerschool_id: 'S1001',
+          service_id: sharedServiceId,
+          staff_id: aroonId,
+          start_time: secondSlot.start_time,
+          end_time: secondSlot.end_time,
+        }],
+      },
+    });
+    assert.equal(second.status, 201, JSON.stringify(second.json));
+    assert.equal(db.prepare(`
+      SELECT COUNT(*) AS n FROM bookings
+      WHERE event_id = ? AND staff_id = ? AND student_powerschool_id = 'S1001' AND status = 'confirmed'
+    `).get(sharedId, aroonId).n, 2);
+  });
 });
