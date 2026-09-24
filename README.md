@@ -207,7 +207,7 @@ curl -s -b cookies.txt \
 
 Response shape: `{ staff_id, service_id, room_override, slots: [{ start_time, end_time, available }] }`. `room_override` is returned as stored (null when unset); this route does not fall back to a PowerSchool room.
 
-A verified parent device can list their own bookings (optional `?event_id=` filter). The email comes from the device cookie, not a query param:
+A verified parent device can list their own bookings (optional `?event_id=` filter). The email comes from the device cookie, not a query param. Each booking’s `room` uses `room_override` when set, otherwise the PowerSchool room (same resolution as the staff bookings report):
 
 ```bash
 curl -s -b parent-cookies.txt http://127.0.0.1:47231/api/v1/bookings/lookup
