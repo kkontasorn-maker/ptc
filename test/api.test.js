@@ -6,6 +6,8 @@ import path from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { projectRoot } from '../src/config.js';
 import { createApp } from '../src/app.js';
+import { resolveBookingRooms } from '../src/booking-rooms.js';
+import { createPsapiClient } from '../src/psapi/client.js';
 import { todayInZone } from '../src/time.js';
 
 const roleMap = {
@@ -385,6 +387,119 @@ describe('admin API', { concurrency: false }, () => {
       cookie: admin.cookie,
     });
     assert.equal(gone.status, 404);
+  });
+
+  test('lets IT admin set and clear room_override on an assignment', async () => {
+    const event = await createEvent(admin.cookie, { name: 'Room override event' });
+    const created = await api(`/api/v1/events/${event.id}/services`, {
+      method: 'POST',
+      cookie: admin.cookie,
+      body: { name: 'Elementary', slot_duration_minutes: 15 },
+    });
+    assert.equal(created.status, 201);
+    const serviceId = created.json.service.id;
+
+    const assigned = await api(`/api/v1/services/${serviceId}/staff`, {
+      method: 'POST',
+      cookie: admin.cookie,
+      body: { staff_id: aroonId },
+    });
+    assert.equal(assigned.status, 201);
+
+    const patched = await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { room_override: '  Gym  ' },
+    });
+    assert.equal(patched.status, 200, JSON.stringify(patched.json));
+    assert.deepEqual(patched.json.assignment, {
+      staff_id: aroonId,
+      service_id: serviceId,
+      room_override: 'Gym',
+    });
+
+    const detail = await api(`/api/v1/events/${event.id}`, { cookie: admin.cookie });
+    assert.equal(detail.status, 200);
+    const listed = detail.json.event.services[0].staff.find((member) => member.id === aroonId);
+    assert.equal(listed.room_override, 'Gym');
+
+    const clearedNull = await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { room_override: null },
+    });
+    assert.equal(clearedNull.status, 200);
+    assert.equal(clearedNull.json.assignment.room_override, null);
+
+    const setAgain = await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { room_override: 'Library' },
+    });
+    assert.equal(setAgain.status, 200);
+    assert.equal(setAgain.json.assignment.room_override, 'Library');
+
+    const clearedEmpty = await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { room_override: '' },
+    });
+    assert.equal(clearedEmpty.status, 200);
+    assert.equal(clearedEmpty.json.assignment.room_override, null);
+
+    const afterClear = await api(`/api/v1/events/${event.id}`, { cookie: admin.cookie });
+    const clearedMember = afterClear.json.event.services[0].staff.find((member) => member.id === aroonId);
+    assert.equal(clearedMember.room_override, null);
+
+    const rooms = await resolveBookingRooms(createPsapiClient({}), [{
+      parent_email: 'parent@nis.ac.th',
+      student_powerschool_id: 'S1001',
+      powerschool_teacher_id: 'T1001',
+      room_override: clearedMember.room_override,
+    }]);
+    assert.equal(rooms[0], '204');
+
+    const frontPatch = await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: front.cookie,
+      body: { room_override: 'Gym' },
+    });
+    assert.equal(frontPatch.status, 403);
+
+    const teacherPatch = await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: teacher.cookie,
+      body: { room_override: 'Gym' },
+    });
+    assert.equal(teacherPatch.status, 403);
+
+    const unknownService = await api(`/api/v1/services/999999/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { room_override: 'Gym' },
+    });
+    assert.equal(unknownService.status, 404);
+
+    const unknownStaff = await api(`/api/v1/services/${serviceId}/staff/999999`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { room_override: 'Gym' },
+    });
+    assert.equal(unknownStaff.status, 404);
+
+    const unassigned = await api(`/api/v1/services/${serviceId}/staff/${mayaId}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { room_override: 'Gym' },
+    });
+    assert.equal(unassigned.status, 404);
+
+    const tooLong = await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { room_override: 'x'.repeat(101) },
+    });
+    assert.equal(tooLong.status, 400);
   });
 
   test('preserves staff display overrides across sync', async () => {

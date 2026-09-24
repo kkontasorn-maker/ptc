@@ -218,6 +218,26 @@ export function validateStaffAssign(body) {
   return { staff_id: data.staff_id };
 }
 
+export function validateRoomOverride(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['room_override']);
+  const value = data.room_override;
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string') {
+    throw new ValidationError('room_override must be a string or null', [
+      { field: 'room_override', message: 'room_override must be a string or null' },
+    ]);
+  }
+  const text = value.trim();
+  if (!text) return null;
+  if (text.length > 100) {
+    throw new ValidationError('room_override must be 100 characters or fewer', [
+      { field: 'room_override', message: 'room_override must be 100 characters or fewer' },
+    ]);
+  }
+  return text;
+}
+
 export function validateLocalLogin(body) {
   const data = requireObject(body);
   assertAllowed(data, ['email']);

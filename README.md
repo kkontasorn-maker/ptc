@@ -103,7 +103,14 @@ A parent session receives `404 Event not found` for an unpublished conference, t
 
 `display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email is refreshed from PowerSchool.
 
-Guardian lookups are cached for 5 minutes per email. Slot availability is computed on each parent-view request. `room_override` on a staff assignment replaces the PowerSchool room when it is set. There is still no admin API to edit `room_override`; the assign body remains `{ staff_id }`.
+Guardian lookups are cached for 5 minutes per email. Slot availability is computed on each parent-view request. `room_override` on a staff assignment replaces the PowerSchool room when it is set. Assign remains `{ staff_id }`. IT admins set or clear the override with `PATCH /api/v1/services/{serviceId}/staff/{staffId}` and `{ "room_override": "Gym" }` (`null` or `""` clears it back to the PowerSchool room).
+
+```bash
+curl -s -b cookies.txt -X PATCH http://127.0.0.1:47231/api/v1/services/1/staff/1 \
+  -H 'Content-Type: application/json' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -d '{"room_override":"Gym"}'
+```
 
 Break blocks are not subtracted from bookable windows. The spec does not define that overlap. A slot is unavailable only when a confirmed booking overlaps it. A remainder shorter than one slot is dropped.
 

@@ -52,6 +52,9 @@ export class StaffRepository {
       VALUES (?, ?, NULL)
     `);
     this.unassignStmt = db.prepare('DELETE FROM staff_services WHERE staff_id = ? AND service_id = ?');
+    this.updateRoomOverrideStmt = db.prepare(`
+      UPDATE staff_services SET room_override = ? WHERE staff_id = ? AND service_id = ?
+    `);
     this.assignmentLookupStmt = db.prepare(`
       SELECT s.id AS staff_id, s.powerschool_teacher_id, s.display_name, s.photo_url,
              ss.service_id, ss.room_override, sv.slot_duration_minutes, sv.event_id
@@ -154,6 +157,16 @@ export class StaffRepository {
   unassign(serviceId, staffId) {
     const info = this.unassignStmt.run(staffId, serviceId);
     return info.changes > 0;
+  }
+
+  updateRoomOverride(serviceId, staffId, roomOverride) {
+    const info = this.updateRoomOverrideStmt.run(roomOverride, staffId, serviceId);
+    if (info.changes === 0) return null;
+    return {
+      staff_id: staffId,
+      service_id: serviceId,
+      room_override: roomOverride,
+    };
   }
 
   findAssignment(staffId, serviceId) {

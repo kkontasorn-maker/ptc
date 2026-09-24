@@ -5,7 +5,7 @@ import { notifyStrandedParents, readConfirmOverride, rejectIfStranded } from '..
 import { asyncHandler } from '../http.js';
 import { presentMergedStaff, safePhotoUrl } from '../present.js';
 import { mergeStaff } from '../staff-merge.js';
-import { parseRouteId, validateStaffAssign, validateStaffPatch } from '../validate.js';
+import { parseRouteId, validateRoomOverride, validateStaffAssign, validateStaffPatch } from '../validate.js';
 
 function presentRecord(staff) {
   return {
@@ -113,6 +113,21 @@ export function createStaffRoutes({ repos, psapi, mail }) {
     const result = repos.staff.assign(serviceId, staffId);
     if (result.conflict) throw new ConflictError('That staff member is already assigned to this service');
     res.status(201).json(result);
+  });
+
+  router.patch('/services/:serviceId/staff/:staffId', requireItAdmin, (req, res) => {
+    const serviceId = parseRouteId(req.params.serviceId, 'Service id');
+    const staffId = parseRouteId(req.params.staffId, 'Staff id');
+    const service = repos.services.findById(serviceId);
+    if (!service) throw new NotFoundError('Service not found');
+    if (!repos.staff.findById(staffId)) throw new NotFoundError('Staff not found');
+    if (!repos.staff.findAssignment(staffId, serviceId)) {
+      throw new NotFoundError('That staff member is not assigned to this service');
+    }
+    const roomOverride = validateRoomOverride(req.body);
+    const assignment = repos.staff.updateRoomOverride(serviceId, staffId, roomOverride);
+    if (!assignment) throw new NotFoundError('That staff member is not assigned to this service');
+    res.json({ assignment });
   });
 
   router.delete('/services/:serviceId/staff/:staffId', requireItAdmin, asyncHandler(async (req, res) => {
