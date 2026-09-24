@@ -79,7 +79,7 @@ export class BookingRepository {
       SELECT * FROM bookings WHERE booking_batch_id = ? ORDER BY start_time ASC, id ASC
     `);
     this.listForParentStmt = db.prepare(`
-      SELECT b.*, s.display_name, ss.room_override
+      SELECT b.*, s.display_name, s.powerschool_teacher_id, ss.room_override
       FROM bookings b
       INNER JOIN staff s ON s.id = b.staff_id
       LEFT JOIN staff_services ss ON ss.staff_id = b.staff_id AND ss.service_id = b.service_id
@@ -230,7 +230,8 @@ export class BookingRepository {
     return this.listForParentStmt.all(normalized, eventId, eventId).map((row) => ({
       ...mapBooking(row),
       display_name: row.display_name,
-      room: row.room_override ?? null,
+      powerschool_teacher_id: row.powerschool_teacher_id,
+      room_override: row.room_override,
     }));
   }
 

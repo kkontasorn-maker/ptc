@@ -779,4 +779,28 @@ describe('booking submission', { concurrency: false }, () => {
     });
     assert.equal(missingEvent.status, 404);
   });
+
+  test('bookings lookup resolves PowerSchool room when room_override is unset', async () => {
+    // Clear any override left by the slots test so this exercises the PS path.
+    await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: adminCookie,
+      body: { room_override: null },
+    });
+    const assignment = db.prepare(`
+      SELECT room_override FROM staff_services WHERE staff_id = ? AND service_id = ?
+    `).get(aroonId, serviceId);
+    assert.equal(assignment.room_override, null);
+
+    const looked = await api(`/api/v1/bookings/lookup?event_id=${eventId}`, {
+      cookie: parentCookie,
+    });
+    assert.equal(looked.status, 200, JSON.stringify(looked.json));
+    const aroonBooking = looked.json.bookings.find(
+      (row) => row.staff_id === aroonId && row.student_powerschool_id === 'S1001',
+    );
+    assert.ok(aroonBooking, 'expected an Aroon booking for Niran without room_override');
+    // Mock guardian data: Aroon (T1001) room is 204 for S1001.
+    assert.equal(aroonBooking.room, '204');
+  });
 });

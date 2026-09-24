@@ -128,10 +128,11 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
       if (!repos.events.findById(eventId)) throw new NotFoundError('Event not found');
     }
     const rows = repos.bookings.listForParent(email, eventId);
+    const rooms = await resolveBookingRooms(psapi, rows);
     res.json({
-      bookings: rows.map((row) => presentBooking(row, {
+      bookings: rows.map((row, index) => presentBooking(row, {
         displayName: row.display_name,
-        room: row.room,
+        room: rooms[index],
       })),
     });
   }));
