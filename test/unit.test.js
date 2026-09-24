@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import Database from 'better-sqlite3';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -79,6 +80,49 @@ describe('sqlite startup', () => {
     const row = second.prepare('SELECT name FROM events').get();
     assert.equal(row.name, 'Keep');
     second.close();
+  });
+
+  test('replaces a booking overlap index that ignored the conference', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'ptc-overlap-'));
+    const dbPath = path.join(dir, 'old.sqlite');
+    const legacy = new Database(dbPath);
+    legacy.exec(`
+      CREATE TABLE events (id INTEGER PRIMARY KEY, name TEXT);
+      CREATE TABLE bookings (
+        id INTEGER PRIMARY KEY,
+        event_id INTEGER,
+        staff_id INTEGER,
+        start_time TEXT,
+        status TEXT
+      );
+      CREATE UNIQUE INDEX idx_bookings_no_overlap
+        ON bookings(staff_id, start_time)
+        WHERE status = 'confirmed';
+      INSERT INTO events (name) VALUES ('Existing');
+      INSERT INTO bookings (event_id, staff_id, start_time, status)
+      VALUES (1, 7, '2026-10-14T08:00:00+07:00', 'confirmed');
+    `);
+    legacy.close();
+
+    const db = openDatabase(dbPath, path.join(projectRoot, 'db', 'schema.sql'));
+    const columns = db.prepare('PRAGMA index_info(idx_bookings_no_overlap)').all()
+      .map((column) => column.name);
+    assert.deepEqual(columns, ['staff_id', 'event_id', 'start_time']);
+    db.prepare(`
+      INSERT INTO bookings (event_id, staff_id, start_time, status)
+      VALUES (2, 7, '2026-10-14T08:00:00+07:00', 'confirmed')
+    `).run();
+    assert.throws(() => {
+      db.prepare(`
+        INSERT INTO bookings (event_id, staff_id, start_time, status)
+        VALUES (2, 7, '2026-10-14T08:00:00+07:00', 'confirmed')
+      `).run();
+    });
+    assert.equal(db.prepare(`
+      SELECT COUNT(*) AS n FROM bookings WHERE staff_id = 7 AND status = 'confirmed'
+    `).get().n, 2);
+    assert.equal(db.prepare('SELECT name FROM events').get().name, 'Existing');
+    db.close();
   });
 });
 

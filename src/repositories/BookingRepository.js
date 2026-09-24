@@ -81,6 +81,7 @@ export class BookingRepository {
     this.overlapStmt = db.prepare(`
       SELECT COUNT(*) AS n FROM bookings
       WHERE staff_id = ?
+        AND event_id = ?
         AND status = 'confirmed'
         AND start_time < ?
         AND end_time > ?
@@ -242,8 +243,8 @@ export class BookingRepository {
     run.immediate();
   }
 
-  countOverlap(staffId, rangeEnd, rangeStart, excludeId = -1) {
-    return this.overlapStmt.get(staffId, rangeEnd, rangeStart, excludeId).n;
+  countOverlap(staffId, eventId, rangeEnd, rangeStart, excludeId = -1) {
+    return this.overlapStmt.get(staffId, eventId, rangeEnd, rangeStart, excludeId).n;
   }
 
   claim(items, { timeZone, availability }) {
@@ -300,7 +301,7 @@ export class BookingRepository {
         message: 'Choose an open time from the schedule',
       }]);
     }
-    if (this.countOverlap(item.staff_id, item.end_time, item.start_time, excludeId ?? -1) > 0) {
+    if (this.countOverlap(item.staff_id, item.event_id, item.end_time, item.start_time, excludeId ?? -1) > 0) {
       throw new ConflictError('That time was just taken. Choose another.');
     }
   }

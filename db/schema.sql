@@ -77,10 +77,10 @@ CREATE INDEX idx_bookings_email_event ON bookings(parent_email, event_id);
 CREATE INDEX idx_bookings_staff_event ON bookings(staff_id, event_id);
 CREATE INDEX idx_bookings_batch ON bookings(booking_batch_id);
 
--- Prevents double-booking the same teacher slot at the DB level as a
--- last line of defense (application layer should also check before insert)
+-- Prevents double-booking the same teacher slot in one conference.
+-- The same clock time on a different event is a different visit.
 CREATE UNIQUE INDEX idx_bookings_no_overlap
-  ON bookings(staff_id, start_time)
+  ON bookings(staff_id, event_id, start_time)
   WHERE status = 'confirmed';
 
 CREATE TABLE verification_codes (

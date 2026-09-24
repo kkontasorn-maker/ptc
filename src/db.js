@@ -22,6 +22,7 @@ export function openDatabase(dbPath, schemaPath) {
   }
   ensureConflictSchema(db);
   ensureNotificationSchema(db);
+  ensureBookingOverlapIndex(db);
   return db;
 }
 
@@ -40,6 +41,24 @@ function ensureConflictSchema(db) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_booking_conflict_log_booking ON booking_conflict_log(booking_id);
+  `);
+}
+
+function ensureBookingOverlapIndex(db) {
+  const bookings = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bookings'",
+  ).get();
+  if (!bookings) return;
+  const columns = db.prepare('PRAGMA index_info(idx_bookings_no_overlap)').all();
+  const names = columns.map((column) => column.name);
+  if (names.length === 3 && names[0] === 'staff_id' && names[1] === 'event_id' && names[2] === 'start_time') {
+    return;
+  }
+  db.exec(`
+    DROP INDEX IF EXISTS idx_bookings_no_overlap;
+    CREATE UNIQUE INDEX idx_bookings_no_overlap
+      ON bookings(staff_id, event_id, start_time)
+      WHERE status = 'confirmed';
   `);
 }
 

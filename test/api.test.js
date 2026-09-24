@@ -160,6 +160,9 @@ describe('admin API', { concurrency: false }, () => {
       WHERE type = 'index' AND name LIKE 'idx_%'
       ORDER BY name
     `).all().map((row) => row.name);
+    const overlap = db.prepare('PRAGMA index_info(idx_bookings_no_overlap)').all()
+      .map((column) => column.name);
+    assert.deepEqual(overlap, ['staff_id', 'event_id', 'start_time']);
     assert.deepEqual(indexes, [
       'idx_avail_staff_event',
       'idx_booking_conflict_log_booking',

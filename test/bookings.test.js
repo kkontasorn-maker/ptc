@@ -443,8 +443,94 @@ describe('booking submission', { concurrency: false }, () => {
     assert.deepEqual(statuses, [201, 409]);
     const rows = db.prepare(`
       SELECT COUNT(*) AS n FROM bookings
-      WHERE staff_id = ? AND start_time = ? AND status = 'confirmed'
-    `).get(priyaId, slot.start_time);
+      WHERE staff_id = ? AND event_id = ? AND start_time = ? AND status = 'confirmed'
+    `).get(priyaId, eventId, slot.start_time);
     assert.equal(rows.n, 1);
+  });
+
+  test('allows the same teacher time on another conference', async () => {
+    async function openConference(name) {
+      const event = await api('/api/v1/events', {
+        method: 'POST',
+        cookie: adminCookie,
+        body: { name, event_date: future },
+      });
+      assert.equal(event.status, 201, JSON.stringify(event.json));
+      const id = event.json.event.id;
+      const service = await api(`/api/v1/events/${id}/services`, {
+        method: 'POST',
+        cookie: adminCookie,
+        body: { name: 'Elementary', slot_duration_minutes: 15 },
+      });
+      assert.equal(service.status, 201, JSON.stringify(service.json));
+      const nextServiceId = service.json.service.id;
+      const assigned = await api(`/api/v1/services/${nextServiceId}/staff`, {
+        method: 'POST',
+        cookie: adminCookie,
+        body: { staff_id: aroonId },
+      });
+      assert.equal(assigned.status, 201, JSON.stringify(assigned.json));
+      const block = await api(`/api/v1/events/${id}/staff/${aroonId}/availability`, {
+        method: 'POST',
+        cookie: adminCookie,
+        body: { start_time: `${future}T13:00`, end_time: `${future}T13:30`, block_type: 'bookable' },
+      });
+      assert.equal(block.status, 201, JSON.stringify(block.json));
+      const opened = await api(`/api/v1/events/${id}`, {
+        method: 'PATCH',
+        cookie: adminCookie,
+        body: { is_open_for_booking: true },
+      });
+      assert.equal(opened.status, 200, JSON.stringify(opened.json));
+      return { id, serviceId: nextServiceId };
+    }
+
+    const first = await openConference('October morning');
+    const second = await openConference('October afternoon');
+    const view = await api(`/api/v1/events/${first.id}/parent-view?email=parent@nis.ac.th`, { cookie: parentCookie });
+    assert.equal(view.status, 200, JSON.stringify(view.json));
+    const slot = view.json.children[0].teachers.find((teacher) => teacher.staff_id === aroonId).slots[0];
+    const bodyFor = (conference) => ({
+      parent_email: 'parent@nis.ac.th',
+      parent_relationship: 'mother',
+      picks: [{
+        student_powerschool_id: 'S1001',
+        service_id: conference.serviceId,
+        staff_id: aroonId,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+      }],
+    });
+
+    const booked = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: parentCookie,
+      body: bodyFor(first),
+    });
+    assert.equal(booked.status, 201, JSON.stringify(booked.json));
+    const other = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: parentCookie,
+      body: bodyFor(second),
+    });
+    assert.equal(other.status, 201, JSON.stringify(other.json));
+    const held = db.prepare(`
+      SELECT event_id FROM bookings
+      WHERE staff_id = ? AND start_time = ? AND status = 'confirmed'
+      ORDER BY event_id
+    `).all(aroonId, slot.start_time);
+    assert.deepEqual(held.map((row) => row.event_id), [first.id, second.id].sort((a, b) => a - b));
+
+    const again = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: parentCookie,
+      body: bodyFor(first),
+    });
+    assert.equal(again.status, 409);
+    assert.equal(again.json.error.code, 'CONFLICT');
+    assert.equal(db.prepare(`
+      SELECT COUNT(*) AS n FROM bookings
+      WHERE staff_id = ? AND event_id = ? AND start_time = ? AND status = 'confirmed'
+    `).get(aroonId, first.id, slot.start_time).n, 1);
   });
 });
