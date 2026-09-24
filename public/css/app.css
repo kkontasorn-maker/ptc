@@ -717,6 +717,21 @@ select.input {
 
 .landing-editor-form { max-width: none; }
 
+.custom-fields-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+  border-top: 0.5px solid var(--border);
+}
+
+.custom-fields-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .inline-add {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -194,7 +194,12 @@ IT admins define optional text questions per event. Answers are stored once per 
 | PATCH | `/api/v1/events/:eventId/custom-fields/reorder` | it_admin |
 | DELETE | `/api/v1/events/:eventId/custom-fields/:id` | it_admin |
 
-`POST /api/v1/bookings` accepts optional `custom_field_values: [{ field_id, value }]` (value ≤ 500 chars). Unknown `field_id` or a missing required field returns `400`. Values are saved in the same SQLite transaction as the booking claim. `GET /events/:eventId/parent-view` includes `custom_field_definitions`. The bookings report includes each row’s batch `custom_field_values`.
+`POST /api/v1/bookings` accepts optional `custom_field_values: [{ field_id, value }]` (value ≤ 500 chars). Unknown `field_id` or a missing required field returns `400`. Values are saved in the same SQLite transaction as the booking claim. `GET /events/:eventId/parent-view` includes `custom_field_definitions`. The bookings report includes each row’s batch `custom_field_values`. Label max is 200 characters (same as other name fields).
+
+### Screens
+
+- Admin: open a conference → **Custom fields** tab (`#/events/:id/custom-fields`) — IT admin can add, edit, reorder (up/down), and delete; front office can view. Deleting a field also removes past answers for that field.
+- Parent booking: when `custom_field_definitions` is non-empty, the book form shows those questions above **Confirm visit**. Required fields show an asterisk; empty required answers are blocked client-side and still enforced by the API.
 
 ## Slot grid and parent lookup
 

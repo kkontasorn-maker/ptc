@@ -129,6 +129,7 @@ function parseRoute(hash) {
     if (parts[1] === 'new') return { name: 'event-new' };
     if (parts[2] === 'services') return { name: 'services', id: parts[1] };
     if (parts[2] === 'availability') return { name: 'availability', id: parts[1] };
+    if (parts[2] === 'custom-fields') return { name: 'custom-fields', id: parts[1] };
     if (parts[2] === 'bookings') return { name: 'bookings', id: parts[1] };
     if (!parts[2]) return { name: 'event', id: parts[1] };
   }
@@ -521,6 +522,7 @@ function BookingScreen({ eventId }) {
   const [confirmation, setConfirmation] = useState(null);
   const [moving, setMoving] = useState(null);
   const [moveSlot, setMoveSlot] = useState(null);
+  const [customAnswers, setCustomAnswers] = useState({});
 
   const load = useCallback(async (address) => {
     setPhase('loading');
@@ -535,6 +537,13 @@ function BookingScreen({ eventId }) {
       const data = await api(`/events/${id}/parent-view?email=${encodeURIComponent(address)}`, { allow401: true });
       setView(data);
       setChildId((current) => current || data.children?.[0]?.student_powerschool_id || '');
+      setCustomAnswers((current) => {
+        const next = {};
+        for (const field of data.custom_field_definitions || []) {
+          next[field.id] = current[field.id] || '';
+        }
+        return next;
+      });
       setPhase('grid');
     } catch (err) {
       if (err.status === 401) {
@@ -573,9 +582,23 @@ function BookingScreen({ eventId }) {
   async function submitVisit(event) {
     event.preventDefault();
     if (!selected.length || locked) return;
+    const definitions = view?.custom_field_definitions || [];
+    const missing = definitions.find((field) => (
+      field.required && !(customAnswers[field.id] || '').trim()
+    ));
+    if (missing) {
+      setError(`Please answer "${missing.label}".`);
+      return;
+    }
     setBusy(true);
     setError('');
     try {
+      const custom_field_values = definitions
+        .map((field) => ({
+          field_id: field.id,
+          value: (customAnswers[field.id] || '').trim(),
+        }))
+        .filter((item) => item.value.length > 0);
       const body = {
         parent_email: email.trim(),
         parent_relationship: relationship,
@@ -587,6 +610,7 @@ function BookingScreen({ eventId }) {
           end_time: item.end_time,
         })),
       };
+      if (custom_field_values.length) body.custom_field_values = custom_field_values;
       if (relationship === 'other') body.parent_relationship_other = relationshipOther.trim();
       if (firstName.trim()) body.parent_first_name = firstName.trim();
       if (lastName.trim()) body.parent_last_name = lastName.trim();
@@ -683,6 +707,7 @@ function BookingScreen({ eventId }) {
   }
 
   const child = view?.children?.find((item) => item.student_powerschool_id === childId) || view?.children?.[0];
+  const customDefs = view?.custom_field_definitions || [];
   const held = [];
   for (const person of view?.children || []) {
     for (const teacher of person.teachers || []) {
@@ -787,6 +812,19 @@ function BookingScreen({ eventId }) {
             <span className="field-label">Last name</span>
             <input className="input" value=${lastName} onInput=${(event) => setLastName(event.target.value)} />
           </label>
+          ${customDefs.length ? html`<div className="custom-fields-block">
+            <h3 className="custom-fields-heading">Additional questions</h3>
+            ${customDefs.map((field) => html`<label className="field" key=${field.id}>
+              <span className="field-label">${field.label}${field.required ? ' *' : ''}</span>
+              <input
+                className="input"
+                maxLength="500"
+                required=${Boolean(field.required)}
+                value=${customAnswers[field.id] || ''}
+                onInput=${(event) => setCustomAnswers((current) => ({ ...current, [field.id]: event.target.value }))}
+              />
+            </label>`)}
+          </div>` : null}
           <button className="btn btn-primary" type="submit" disabled=${busy || !selected.length || Boolean(locked)}>${busy ? 'Booking…' : 'Confirm visit'}</button>
         </form>
       </div>` : null}
@@ -1013,6 +1051,7 @@ function Subnav({ id, section, user }) {
     <a href=${`#/events/${id}`} className=${section === 'details' ? 'active' : ''}>Details</a>
     <a href=${`#/events/${id}/services`} className=${section === 'services' ? 'active' : ''}>Services</a>
     <a href=${`#/events/${id}/availability`} className=${section === 'availability' ? 'active' : ''}>Availability</a>
+    ${canReport ? html`<a href=${`#/events/${id}/custom-fields`} className=${section === 'custom-fields' ? 'active' : ''}>Custom fields</a>` : null}
     ${canReport ? html`<a href=${`#/events/${id}/bookings`} className=${section === 'bookings' ? 'active' : ''}>Bookings</a>` : null}
   </nav>`;
 }
@@ -1099,6 +1138,7 @@ function EventWorkspace({ user, eventId, section, timeZone }) {
       ${section === 'details' ? html`<${DetailsPanel} event=${state.event} user=${user} timeZone=${timeZone} onSaved=${reload} />` : null}
       ${section === 'services' ? html`<${ServicesPanel} event=${state.event} user=${user} onChange=${reload} />` : null}
       ${section === 'availability' ? html`<${AvailabilityPanel} event=${state.event} user=${user} timeZone=${timeZone} />` : null}
+      ${section === 'custom-fields' ? html`<${CustomFieldsPanel} event=${state.event} user=${user} />` : null}
       ${section === 'bookings' ? html`<${BookingsReport} event=${state.event} />` : null}
     </div>` : null}
   </${Shell}>`;
@@ -1558,6 +1598,219 @@ function AvailabilityPanel({ event, user, timeZone }) {
         </div>` : null}
       </article>`)}
     </div>
+  </div>`;
+}
+
+const CUSTOM_FIELD_LABEL_MAX = 200;
+
+function CustomFieldsPanel({ event, user }) {
+  const canWrite = user.role === 'it_admin';
+  const canRead = user.role === 'it_admin' || user.role === 'front_office';
+  const [state, setState] = useState({ loading: true, error: null, fields: [] });
+  const [label, setLabel] = useState('');
+  const [required, setRequired] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editRequired, setEditRequired] = useState(false);
+  const [fields, setFields] = useState({});
+  const [formError, setFormError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    if (!canRead) return;
+    setState((current) => ({ ...current, loading: true, error: null }));
+    api(`/events/${event.id}/custom-fields`)
+      .then((data) => setState({
+        loading: false,
+        error: null,
+        fields: data.custom_fields || [],
+      }))
+      .catch((error) => setState({ loading: false, error, fields: [] }));
+  }, [event.id, canRead]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function beginEdit(field) {
+    setEditingId(field.id);
+    setEditLabel(field.label);
+    setEditRequired(Boolean(field.required));
+    setFields({});
+    setFormError('');
+    setSuccess('');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditLabel('');
+    setEditRequired(false);
+    setFields({});
+  }
+
+  async function addField(formEvent) {
+    formEvent.preventDefault();
+    if (!canWrite) return;
+    setBusy(true);
+    setFormError('');
+    setFields({});
+    setSuccess('');
+    try {
+      await api(`/events/${event.id}/custom-fields`, {
+        method: 'POST',
+        body: { label: label.trim(), required },
+      });
+      setLabel('');
+      setRequired(false);
+      setSuccess('Field added.');
+      load();
+    } catch (error) {
+      const mapped = fieldMap(error);
+      setFields(mapped);
+      setFormError(Object.keys(mapped).length ? '' : error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveEdit(formEvent) {
+    formEvent.preventDefault();
+    if (!canWrite || !editingId) return;
+    setBusy(true);
+    setFormError('');
+    setFields({});
+    setSuccess('');
+    try {
+      await api(`/events/${event.id}/custom-fields/${editingId}`, {
+        method: 'PATCH',
+        body: { label: editLabel.trim(), required: editRequired },
+      });
+      cancelEdit();
+      setSuccess('Field saved.');
+      load();
+    } catch (error) {
+      const mapped = fieldMap(error);
+      setFields(mapped);
+      setFormError(Object.keys(mapped).length ? '' : error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function moveField(index, direction) {
+    if (!canWrite) return;
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= state.fields.length) return;
+    const ordered = state.fields.map((field) => field.id);
+    const swap = ordered[index];
+    ordered[index] = ordered[nextIndex];
+    ordered[nextIndex] = swap;
+    setBusy(true);
+    setFormError('');
+    setSuccess('');
+    try {
+      await api(`/events/${event.id}/custom-fields/reorder`, {
+        method: 'PATCH',
+        body: { ordered_ids: ordered },
+      });
+      load();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeField(fieldId) {
+    if (!canWrite) return;
+    setBusy(true);
+    setFormError('');
+    setSuccess('');
+    try {
+      await api(`/events/${event.id}/custom-fields/${fieldId}`, { method: 'DELETE' });
+      if (editingId === fieldId) cancelEdit();
+      setSuccess('Field deleted.');
+      load();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!canRead) {
+    return html`<div className="note">You do not have access to this action.</div>`;
+  }
+
+  return html`<div className="stack">
+    ${success ? html`<div><span className="success-note">${success}</span></div>` : null}
+    ${formError ? html`<div className="note">${formError}</div>` : null}
+    ${canWrite && !editingId ? html`<form className="card form" onSubmit=${addField}>
+      <h2>Add a custom field</h2>
+      <p className="lede">Parents answer these once when they confirm a visit.</p>
+      <label className="field">
+        <span className="field-label">Label</span>
+        <input className="input" required maxLength=${CUSTOM_FIELD_LABEL_MAX} value=${label} onInput=${(event) => setLabel(event.target.value)} />
+        ${fields.label ? html`<span className="field-error">${fields.label}</span>` : null}
+      </label>
+      <div className="switch-row">
+        <div>
+          <div className="field-label">Required</div>
+          <div className="field-hint">Parents must answer before confirming.</div>
+        </div>
+        <button type="button" className=${cx('toggle', required && 'on')} role="switch" aria-checked=${required ? 'true' : 'false'} aria-label="Required" onClick=${() => setRequired((value) => !value)}>
+          <span className="toggle-knob"></span>
+        </button>
+      </div>
+      <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Adding…' : 'Add field'}</button>
+    </form>` : null}
+    ${state.loading ? html`<p className="muted">Loading custom fields…</p>` : null}
+    ${state.error ? html`<div className="stack">
+      <div className="note">${state.error.message}</div>
+      <button type="button" className="btn btn-primary" onClick=${load}>Try again</button>
+    </div>` : null}
+    ${!state.loading && !state.error && state.fields.length === 0 ? html`<div className="card">
+      <p>No custom fields yet.</p>
+      <p className="lede">Add a question such as preferred language or parking note.</p>
+    </div>` : null}
+    ${!state.loading && !state.error ? state.fields.map((field, index) => html`<article className="card" key=${field.id}>
+      ${editingId === field.id ? html`<form className="form" onSubmit=${saveEdit}>
+        <label className="field">
+          <span className="field-label">Label</span>
+          <input className="input" required maxLength=${CUSTOM_FIELD_LABEL_MAX} value=${editLabel} onInput=${(event) => setEditLabel(event.target.value)} />
+          ${fields.label ? html`<span className="field-error">${fields.label}</span>` : null}
+        </label>
+        <div className="switch-row">
+          <div>
+            <div className="field-label">Required</div>
+          </div>
+          <button type="button" className=${cx('toggle', editRequired && 'on')} role="switch" aria-checked=${editRequired ? 'true' : 'false'} aria-label="Required" onClick=${() => setEditRequired((value) => !value)}>
+            <span className="toggle-knob"></span>
+          </button>
+        </div>
+        <div className="btn-row">
+          <button className="btn btn-primary" type="submit" disabled=${busy}>Save field</button>
+          <button className="btn btn-secondary" type="button" onClick=${cancelEdit}>Cancel</button>
+        </div>
+      </form>` : html`<div>
+        <div className="staff-line">
+          <div>
+            <div className="person-name">${field.label}</div>
+            <div className="muted">Position ${index + 1}</div>
+          </div>
+          ${field.required ? html`<span className="pill">Required</span>` : html`<span className="pill">Optional</span>`}
+        </div>
+        ${canWrite ? html`<div className="btn-row section-gap">
+          <button type="button" className="btn btn-secondary" disabled=${busy || index === 0} onClick=${() => moveField(index, -1)}>Up</button>
+          <button type="button" className="btn btn-secondary" disabled=${busy || index >= state.fields.length - 1} onClick=${() => moveField(index, 1)}>Down</button>
+          <button type="button" className="btn btn-secondary" onClick=${() => beginEdit(field)}>Edit</button>
+          <${DeleteControl}
+            label="Delete this field? Past booking answers for this field will also be removed."
+            busy=${busy}
+            onConfirm=${() => removeField(field.id)}
+          />
+        </div>` : null}
+      </div>`}
+    </article>`) : null}
   </div>`;
 }
 
@@ -2679,6 +2932,7 @@ function App() {
       event: 'Conference',
       services: 'Services',
       availability: 'Availability',
+      'custom-fields': 'Custom fields',
       bookings: 'Bookings',
       agenda: 'Agenda',
       staff: 'Staff',
@@ -2724,6 +2978,7 @@ function App() {
   if (route.name === 'event') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="details" timeZone=${timeZone} />`;
   if (route.name === 'services') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="services" timeZone=${timeZone} />`;
   if (route.name === 'availability') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="availability" timeZone=${timeZone} />`;
+  if (route.name === 'custom-fields') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="custom-fields" timeZone=${timeZone} />`;
   if (route.name === 'bookings') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="bookings" timeZone=${timeZone} />`;
   if (route.name === 'notifications') return html`<${NotificationIssuesScreen} user=${user} timeZone=${timeZone} />`;
   if (route.name === 'staff') return html`<${StaffScreen} user=${user} />`;
