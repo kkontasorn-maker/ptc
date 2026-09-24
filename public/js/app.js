@@ -105,8 +105,10 @@ function parseRoute(hash) {
   const raw = (hash || '').replace(/^#/, '');
   const [pathPart, queryPart] = raw.split('?');
   const query = new URLSearchParams(queryPart || '');
-  const parts = (pathPart || '/events').split('/').filter(Boolean);
+  const parts = (pathPart || '/').split('/').filter(Boolean);
   const error = query.get('error');
+  if (!parts.length) return { name: 'landing' };
+  if (parts[0] === 'landing-page') return { name: 'landing-page' };
   if (parts[0] === 'verify') {
     const returnTo = query.get('return') || '';
     return {
@@ -130,21 +132,21 @@ function parseRoute(hash) {
     if (parts[2] === 'bookings') return { name: 'bookings', id: parts[1] };
     if (!parts[2]) return { name: 'event', id: parts[1] };
   }
-  return { name: 'events' };
+  return { name: 'landing' };
 }
 
 function useRoute() {
-  const [hash, setHash] = useState(() => window.location.hash || '#/events');
+  const [hash, setHash] = useState(() => window.location.hash || '#/');
   useEffect(() => {
-    if (!window.location.hash) window.location.hash = '#/events';
-    const onChange = () => setHash(window.location.hash || '#/events');
+    if (!window.location.hash) window.location.hash = '#/';
+    const onChange = () => setHash(window.location.hash || '#/');
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
   return parseRoute(hash);
 }
 
-function Logo({ href = '#/events' }) {
+function Logo({ href = '#/' }) {
   return html`<a className="logo" href=${href}>
     <svg className="logo-mark" viewBox="0 0 48 48" aria-hidden="true">
       <path fill="#8C0E06" fillRule="evenodd" d="M24 4 44 44h-8l-3-8H15l-3 8H4L24 4Zm0 16-4.6 12h9.2L24 20Z" />
@@ -203,6 +205,13 @@ function IconAgenda() {
   </svg>`;
 }
 
+function IconHome() {
+  return html`<svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4.5 11.5 12 5l7.5 6.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7 10.5V19h10v-8.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>`;
+}
+
 function Shell({ user, active, onSignOut, children }) {
   const home = user.role === 'teacher' ? '#/agenda' : '#/events';
   return html`<div>
@@ -218,6 +227,9 @@ function Shell({ user, active, onSignOut, children }) {
         <a href="#/staff" className=${active === 'staff' ? 'active' : ''} aria-current=${active === 'staff' ? 'page' : undefined}>
           <${IconPeople} /> Staff
         </a>
+        ${user.role === 'it_admin' ? html`<a href="#/landing-page" className=${active === 'landing-page' ? 'active' : ''} aria-current=${active === 'landing-page' ? 'page' : undefined}>
+          <${IconHome} /> Landing page
+        </a>` : null}
         ${user.role === 'it_admin' || user.role === 'front_office' ? html`<a href="#/notifications" className=${active === 'notifications' ? 'active' : ''} aria-current=${active === 'notifications' ? 'page' : undefined}>
           <${IconMail} /> Notification issues
         </a>` : null}
@@ -294,6 +306,7 @@ function SignIn({ auth, notice, onSignedIn }) {
             <button className=${googlePrimary ? 'btn btn-secondary' : 'btn btn-primary'} type="submit" disabled=${busy}>${busy ? 'Signing in…' : 'Sign in'}</button>
           </form>` : null}
           ${!auth.google && !auth.local ? html`<div className="note">Sign-in is not configured. Set Google credentials or enable local sign-in.</div>` : null}
+          <p className="muted quiet-link"><a href="#/">Back to home</a></p>
           <p className="muted quiet-link"><a href="#/verify">Verify your email</a></p>
         </div>
       </div>
@@ -2157,6 +2170,484 @@ function NotificationIssuesScreen({ user, timeZone }) {
   </${Shell}>`;
 }
 
+const LANDING_BLOCK_LABELS = {
+  header: 'Header',
+  login_tiles: 'Login tiles',
+  announcement: 'Announcement',
+  rich_text: 'Rich text',
+};
+
+const LANDING_DEFAULT_CONTENT = {
+  header: {
+    school_name: 'Nakornpayap International School',
+    welcome_text: 'Welcome to Parent-Teacher Conferences',
+    logo_url: null,
+  },
+  login_tiles: {
+    parent_label: 'Parent / Student',
+    parent_description: 'Verify your email to book a conference time.',
+    teacher_label: 'Teacher / Staff',
+    teacher_description: 'Sign in to manage your schedule.',
+  },
+  announcement: {
+    message: 'Booking details will appear here.',
+    tone: 'info',
+  },
+  rich_text: {
+    text: 'Add supporting information here. Use **bold**, *italic*, and [safe links](https://example.com).',
+  },
+};
+
+function escapeHtmlEntities(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function unescapeHtmlEntities(text) {
+  return String(text || '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function parseInlineMarkdown(escapedLine, keyPrefix) {
+  const nodes = [];
+  const pattern = /(\*\*([^*]+)\*\*|\*([^*]+)\*|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\))/g;
+  let lastIndex = 0;
+  let match;
+  let part = 0;
+  while ((match = pattern.exec(escapedLine)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(unescapeHtmlEntities(escapedLine.slice(lastIndex, match.index)));
+    }
+    const key = `${keyPrefix}-${part++}`;
+    if (match[2] !== undefined) {
+      nodes.push(html`<strong key=${key}>${unescapeHtmlEntities(match[2])}</strong>`);
+    } else if (match[3] !== undefined) {
+      nodes.push(html`<em key=${key}>${unescapeHtmlEntities(match[3])}</em>`);
+    } else {
+      nodes.push(html`<a key=${key} href=${match[5]} target="_blank" rel="noopener noreferrer">${unescapeHtmlEntities(match[4])}</a>`);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < escapedLine.length) {
+    nodes.push(unescapeHtmlEntities(escapedLine.slice(lastIndex)));
+  }
+  return nodes;
+}
+
+function renderMarkdownLite(text) {
+  const escaped = escapeHtmlEntities(text);
+  const lines = escaped.split(/\r?\n/);
+  const nodes = [];
+  lines.forEach((line, index) => {
+    if (index > 0) nodes.push(html`<br key=${`br-${index}`} />`);
+    const inline = parseInlineMarkdown(line, `L${index}`);
+    if (inline.length === 0) nodes.push('');
+    else nodes.push(...inline);
+  });
+  return nodes;
+}
+
+function LandingHeaderBlock({ content }) {
+  const logoUrl = content?.logo_url;
+  return html`<section className="landing-block landing-header">
+    ${logoUrl ? html`<img className="landing-logo" src=${logoUrl} alt="" />` : null}
+    <h1>${content?.school_name || ''}</h1>
+    <p className="lede">${content?.welcome_text || ''}</p>
+  </section>`;
+}
+
+function LandingLoginTilesBlock({ content }) {
+  return html`<section className="landing-block landing-tiles" aria-label="Sign in options">
+    <a className="card login-tile" href="#/verify">
+      <h2>${content?.parent_label || 'Parent / Student'}</h2>
+      <p>${content?.parent_description || ''}</p>
+    </a>
+    <a className="card login-tile" href="#/sign-in">
+      <h2>${content?.teacher_label || 'Teacher / Staff'}</h2>
+      <p>${content?.teacher_description || ''}</p>
+    </a>
+  </section>`;
+}
+
+function LandingAnnouncementBlock({ content }) {
+  const tone = content?.tone === 'warning' ? 'warning' : 'info';
+  return html`<section className=${cx('landing-block', 'announcement', tone)} role="status">
+    <p>${content?.message || ''}</p>
+  </section>`;
+}
+
+function LandingRichTextBlock({ content }) {
+  return html`<section className="landing-block landing-rich-text">
+    <p>${renderMarkdownLite(content?.text || '')}</p>
+  </section>`;
+}
+
+function LandingBlockView({ block }) {
+  if (block.block_type === 'header') return html`<${LandingHeaderBlock} content=${block.content} key=${block.id} />`;
+  if (block.block_type === 'login_tiles') return html`<${LandingLoginTilesBlock} content=${block.content} key=${block.id} />`;
+  if (block.block_type === 'announcement') return html`<${LandingAnnouncementBlock} content=${block.content} key=${block.id} />`;
+  if (block.block_type === 'rich_text') return html`<${LandingRichTextBlock} content=${block.content} key=${block.id} />`;
+  return null;
+}
+
+function PublicLandingScreen() {
+  const [state, setState] = useState({ loading: true, error: null, blocks: [] });
+
+  useEffect(() => {
+    let live = true;
+    api('/landing-page/blocks', { allow401: true })
+      .then((data) => {
+        if (!live) return;
+        setState({ loading: false, error: null, blocks: data.blocks || [] });
+      })
+      .catch((error) => {
+        if (!live) return;
+        setState({ loading: false, error, blocks: [] });
+      });
+    return () => { live = false; };
+  }, []);
+
+  return html`<div>
+    <header className="app-header"><${Logo} href="#/" /></header>
+    <main className="main landing">
+      ${state.loading ? html`<p className="muted">Loading…</p>` : null}
+      ${state.error ? html`<div className="note">${state.error.message}</div>` : null}
+      ${!state.loading && !state.error && state.blocks.length === 0
+        ? html`<div className="note">No landing page content is published yet.</div>`
+        : null}
+      <div className="landing-stack">
+        ${state.blocks.map((block) => html`<${LandingBlockView} block=${block} key=${block.id} />`)}
+      </div>
+    </main>
+  </div>`;
+}
+
+function cloneLandingContent(blockType, content) {
+  const base = LANDING_DEFAULT_CONTENT[blockType] || {};
+  return { ...base, ...(content || {}) };
+}
+
+function LandingBlockEditorCard({
+  block,
+  index,
+  total,
+  busy,
+  onToggleVisible,
+  onSaveContent,
+  onMove,
+  onDelete,
+}) {
+  const [draft, setDraft] = useState(() => cloneLandingContent(block.block_type, block.content));
+  const [fields, setFields] = useState({});
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(cloneLandingContent(block.block_type, block.content));
+    setFields({});
+    setError('');
+    setSuccess('');
+  }, [block.id, block.updated_at, block.block_type]);
+
+  function updateField(key, value) {
+    setDraft((current) => ({ ...current, [key]: value }));
+    setSuccess('');
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    setFields({});
+    setSuccess('');
+    try {
+      const content = block.block_type === 'header'
+        ? {
+          school_name: draft.school_name,
+          welcome_text: draft.welcome_text,
+          logo_url: draft.logo_url && String(draft.logo_url).trim() ? String(draft.logo_url).trim() : null,
+        }
+        : block.block_type === 'login_tiles'
+          ? {
+            parent_label: draft.parent_label,
+            parent_description: draft.parent_description,
+            teacher_label: draft.teacher_label,
+            teacher_description: draft.teacher_description,
+          }
+          : block.block_type === 'announcement'
+            ? { message: draft.message, tone: draft.tone === 'warning' ? 'warning' : 'info' }
+            : { text: draft.text };
+      await onSaveContent(block.id, content);
+      setSuccess('Saved');
+    } catch (err) {
+      setError(err.message);
+      setFields(fieldMap(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return html`<article className=${cx('card', 'landing-editor-card', !block.visible && 'is-hidden')}>
+    <div className="landing-editor-card-head">
+      <div>
+        <h2>${LANDING_BLOCK_LABELS[block.block_type] || block.block_type}</h2>
+        <p className="muted">Position ${index + 1}</p>
+      </div>
+      <div className="row-actions">
+        <button type="button" className="btn btn-secondary" disabled=${busy || index === 0} onClick=${() => onMove(index, -1)}>Up</button>
+        <button type="button" className="btn btn-secondary" disabled=${busy || index >= total - 1} onClick=${() => onMove(index, 1)}>Down</button>
+        <div className="switch-row landing-visibility">
+          <span className="field-label">${block.visible ? 'Visible' : 'Hidden'}</span>
+          <button
+            type="button"
+            className=${cx('toggle', block.visible && 'on')}
+            role="switch"
+            aria-checked=${block.visible ? 'true' : 'false'}
+            aria-label="Visible on public landing page"
+            disabled=${busy}
+            onClick=${() => onToggleVisible(block)}
+          >
+            <span className="toggle-knob"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <form className="form landing-editor-form" onSubmit=${save}>
+      ${block.block_type === 'header' ? html`
+        <label className="field">
+          <span className="field-label">School name</span>
+          <input className="input" value=${draft.school_name || ''} onInput=${(event) => updateField('school_name', event.target.value)} />
+          ${fields.school_name ? html`<span className="field-error">${fields.school_name}</span>` : null}
+        </label>
+        <label className="field">
+          <span className="field-label">Welcome text</span>
+          <textarea className="input" rows="3" value=${draft.welcome_text || ''} onInput=${(event) => updateField('welcome_text', event.target.value)}></textarea>
+          ${fields.welcome_text ? html`<span className="field-error">${fields.welcome_text}</span>` : null}
+        </label>
+        <label className="field">
+          <span className="field-label">Logo URL (optional)</span>
+          <input className="input" value=${draft.logo_url || ''} placeholder="https://" onInput=${(event) => updateField('logo_url', event.target.value)} />
+          ${fields.logo_url ? html`<span className="field-error">${fields.logo_url}</span>` : null}
+        </label>
+      ` : null}
+      ${block.block_type === 'login_tiles' ? html`
+        <label className="field">
+          <span className="field-label">Parent / student label</span>
+          <input className="input" value=${draft.parent_label || ''} onInput=${(event) => updateField('parent_label', event.target.value)} />
+          ${fields.parent_label ? html`<span className="field-error">${fields.parent_label}</span>` : null}
+        </label>
+        <label className="field">
+          <span className="field-label">Parent / student description</span>
+          <textarea className="input" rows="2" value=${draft.parent_description || ''} onInput=${(event) => updateField('parent_description', event.target.value)}></textarea>
+          ${fields.parent_description ? html`<span className="field-error">${fields.parent_description}</span>` : null}
+        </label>
+        <label className="field">
+          <span className="field-label">Teacher / staff label</span>
+          <input className="input" value=${draft.teacher_label || ''} onInput=${(event) => updateField('teacher_label', event.target.value)} />
+          ${fields.teacher_label ? html`<span className="field-error">${fields.teacher_label}</span>` : null}
+        </label>
+        <label className="field">
+          <span className="field-label">Teacher / staff description</span>
+          <textarea className="input" rows="2" value=${draft.teacher_description || ''} onInput=${(event) => updateField('teacher_description', event.target.value)}></textarea>
+          ${fields.teacher_description ? html`<span className="field-error">${fields.teacher_description}</span>` : null}
+        </label>
+        <p className="field-hint">Links stay fixed: parents go to Verify email, staff go to Sign in.</p>
+      ` : null}
+      ${block.block_type === 'announcement' ? html`
+        <label className="field">
+          <span className="field-label">Message</span>
+          <textarea className="input" rows="3" value=${draft.message || ''} onInput=${(event) => updateField('message', event.target.value)}></textarea>
+          ${fields.message ? html`<span className="field-error">${fields.message}</span>` : null}
+        </label>
+        <label className="field">
+          <span className="field-label">Tone</span>
+          <select className="input" value=${draft.tone === 'warning' ? 'warning' : 'info'} onChange=${(event) => updateField('tone', event.target.value)}>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+          </select>
+          ${fields.tone ? html`<span className="field-error">${fields.tone}</span>` : null}
+        </label>
+      ` : null}
+      ${block.block_type === 'rich_text' ? html`
+        <label className="field">
+          <span className="field-label">Text</span>
+          <textarea className="input" rows="6" value=${draft.text || ''} onInput=${(event) => updateField('text', event.target.value)}></textarea>
+          ${fields.text ? html`<span className="field-error">${fields.text}</span>` : null}
+          <span className="field-hint">Markdown-lite: **bold**, *italic*, line breaks, and http(s) links as [label](https://…).</span>
+        </label>
+      ` : null}
+      ${error ? html`<div className="note">${error}</div>` : null}
+      ${success ? html`<span className="success-note">${success}</span>` : null}
+      <div className="row-actions">
+        <button className="btn btn-primary" type="submit" disabled=${saving || busy}>${saving ? 'Saving…' : 'Save'}</button>
+        <${DeleteControl} label="Delete this block?" busy=${busy} onConfirm=${() => onDelete(block.id)} />
+      </div>
+    </form>
+  </article>`;
+}
+
+function LandingPageEditorScreen({ user }) {
+  const canWrite = user.role === 'it_admin';
+  const [state, setState] = useState({ loading: true, error: null, blocks: [] });
+  const [addType, setAddType] = useState('announcement');
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  async function load() {
+    setState((current) => ({ ...current, loading: true, error: null }));
+    try {
+      const data = await api('/admin/landing-page/blocks');
+      setState({ loading: false, error: null, blocks: data.blocks || [] });
+    } catch (error) {
+      setState({ loading: false, error, blocks: [] });
+    }
+  }
+
+  useEffect(() => {
+    if (!canWrite) return;
+    load();
+  }, [canWrite]);
+
+  async function addBlock(event) {
+    event.preventDefault();
+    if (!canWrite) return;
+    setBusy(true);
+    setFormError('');
+    try {
+      const blockType = addType;
+      await api('/admin/landing-page/blocks', {
+        method: 'POST',
+        body: {
+          block_type: blockType,
+          content: cloneLandingContent(blockType),
+          visible: true,
+        },
+      });
+      await load();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleVisible(block) {
+    setBusy(true);
+    setFormError('');
+    try {
+      await api(`/admin/landing-page/blocks/${block.id}`, {
+        method: 'PATCH',
+        body: { visible: !block.visible },
+      });
+      await load();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveContent(id, content) {
+    setBusy(true);
+    setFormError('');
+    try {
+      await api(`/admin/landing-page/blocks/${id}`, {
+        method: 'PATCH',
+        body: { content },
+      });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function moveBlock(index, direction) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= state.blocks.length) return;
+    const ordered = state.blocks.map((block) => block.id);
+    const swap = ordered[index];
+    ordered[index] = ordered[nextIndex];
+    ordered[nextIndex] = swap;
+    setBusy(true);
+    setFormError('');
+    try {
+      await api('/admin/landing-page/blocks/reorder', {
+        method: 'PATCH',
+        body: { ordered_ids: ordered },
+      });
+      await load();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteBlock(id) {
+    setBusy(true);
+    setFormError('');
+    try {
+      await api(`/admin/landing-page/blocks/${id}`, { method: 'DELETE' });
+      await load();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return html`<${Shell} user=${user} active="landing-page">
+    <div className="screen-head">
+      <div>
+        <h1>Landing page</h1>
+        <p className="lede">Edit the public home page parents and staff see before they sign in.</p>
+      </div>
+      <a className="btn btn-secondary" href="#/">Preview</a>
+    </div>
+    ${!canWrite ? html`<${AccessNote} user=${user} />` : null}
+    ${canWrite ? html`<div className="stack">
+      <form className="card form inline-add" onSubmit=${addBlock}>
+        <label className="field">
+          <span className="field-label">Add block</span>
+          <select className="input" value=${addType} onChange=${(event) => setAddType(event.target.value)}>
+            <option value="header">Header</option>
+            <option value="login_tiles">Login tiles</option>
+            <option value="announcement">Announcement</option>
+            <option value="rich_text">Rich text</option>
+          </select>
+        </label>
+        <button className="btn btn-primary" type="submit" disabled=${busy}>Add</button>
+      </form>
+      ${formError ? html`<div className="note">${formError}</div>` : null}
+      ${state.loading ? html`<p className="muted">Loading blocks…</p>` : null}
+      ${state.error ? html`<div className="note">${state.error.message}</div>` : null}
+      ${!state.loading && !state.error && state.blocks.length === 0
+        ? html`<div className="card"><p>No blocks yet. Add a header or login tiles to get started.</p></div>`
+        : null}
+      ${state.blocks.map((block, index) => html`<${LandingBlockEditorCard}
+        key=${block.id}
+        block=${block}
+        index=${index}
+        total=${state.blocks.length}
+        busy=${busy}
+        onToggleVisible=${toggleVisible}
+        onSaveContent=${saveContent}
+        onMove=${moveBlock}
+        onDelete=${deleteBlock}
+      />`)}
+    </div>` : null}
+  </${Shell}>`;
+}
+
 function App() {
   const route = useRoute();
   const [user, setUser] = useState(undefined);
@@ -2181,6 +2672,8 @@ function App() {
 
   useEffect(() => {
     const titles = {
+      landing: 'Parent-Teacher Conferences',
+      'landing-page': 'Landing page',
       events: 'Conferences',
       'event-new': 'New conference',
       event: 'Conference',
@@ -2208,6 +2701,7 @@ function App() {
     return html`<${VerifyEmailScreen} returnTo=${route.returnTo} initialEmail=${route.email} />`;
   }
   if (route.name === 'book') return html`<${BookingScreen} eventId=${route.id} />`;
+  if (route.name === 'landing') return html`<${PublicLandingScreen} />`;
 
   if (user === undefined) {
     return html`<div>
@@ -2224,6 +2718,7 @@ function App() {
     }} />`;
   }
 
+  if (route.name === 'landing-page') return html`<${LandingPageEditorScreen} user=${user} />`;
   if (route.name === 'agenda') return html`<${AgendaScreen} user=${user} eventId=${route.id} timeZone=${timeZone} />`;
   if (route.name === 'event-new') return html`<${NewEventScreen} user=${user} />`;
   if (route.name === 'event') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="details" timeZone=${timeZone} />`;

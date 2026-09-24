@@ -2,7 +2,7 @@
 
 Admin core for Nakornpayap International School parent-teacher conferences. IT sets up a conference, assigns teachers to services, and opens booking when the schedule is ready. Parents do not see a conference until it is open.
 
-This server has the admin core, parent email verification, booking submission, the teacher agenda, and the landing-page blocks API. The public landing UI and CMS editor screens are not in this slice.
+This server has the admin core, parent email verification, booking submission, the teacher agenda, the landing-page blocks API, the public landing page, and the IT-admin landing editor.
 
 ## Run
 
@@ -13,9 +13,9 @@ npm start
 
 The server listens on port **47231** (override with `PORT`).
 
-[Conferences](http://127.0.0.1:47231)
+[Home](http://127.0.0.1:47231/#/)
 
-Sign in with an email from `config/roles.json`. The server assigns the role. The client cannot choose one.
+Anonymous visitors land on the public home page. Staff sign-in is [Sign in](http://127.0.0.1:47231/#/sign-in). Sign in with an email from `config/roles.json`. The server assigns the role. The client cannot choose one.
 
 | Email | Role |
 |---|---|
@@ -173,11 +173,15 @@ curl -s -b cookies.txt -X PATCH http://127.0.0.1:47231/api/v1/admin/landing-page
   -d '{"ordered_ids":[3,1,2]}'
 ```
 
-`login_tiles` content has no URLs — frontend links stay hardcoded. `rich_text` / announcement message reject HTML-looking markup.
+`login_tiles` content has no URLs — frontend links stay hardcoded (`#/verify` and `#/sign-in`). `rich_text` / announcement message reject HTML-looking markup.
+
+### Screens
+
+- Public landing: [Home](http://127.0.0.1:47231/#/) — `GET /api/v1/landing-page/blocks`, renders visible blocks in order
+- IT admin editor: [Landing page](http://127.0.0.1:47231/#/landing-page) — nav entry for `it_admin` only; add, edit, show/hide, reorder (up/down), delete
 
 ## Not in this slice
 
 - `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route
 - `GET /bookings/lookup`
 - Custom fields
-- Public landing UI and CMS editor screens
