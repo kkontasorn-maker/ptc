@@ -78,6 +78,15 @@ export class BookingRepository {
     this.listBatchStmt = db.prepare(`
       SELECT * FROM bookings WHERE booking_batch_id = ? ORDER BY start_time ASC, id ASC
     `);
+    this.listForParentStmt = db.prepare(`
+      SELECT b.*, s.display_name, ss.room_override
+      FROM bookings b
+      INNER JOIN staff s ON s.id = b.staff_id
+      LEFT JOIN staff_services ss ON ss.staff_id = b.staff_id AND ss.service_id = b.service_id
+      WHERE b.parent_email = ?
+        AND (? IS NULL OR b.event_id = ?)
+      ORDER BY b.start_time ASC, b.id ASC
+    `);
     this.overlapStmt = db.prepare(`
       SELECT COUNT(*) AS n FROM bookings
       WHERE staff_id = ?
@@ -214,6 +223,15 @@ export class BookingRepository {
 
   listByBatch(batchId) {
     return this.listBatchStmt.all(batchId).map(mapBooking);
+  }
+
+  listForParent(email, eventId = null) {
+    const normalized = String(email || '').trim().toLowerCase();
+    return this.listForParentStmt.all(normalized, eventId, eventId).map((row) => ({
+      ...mapBooking(row),
+      display_name: row.display_name,
+      room: row.room_override ?? null,
+    }));
   }
 
   listConfirmedOverlapping(staffId, eventId, rangeEnd, rangeStart) {

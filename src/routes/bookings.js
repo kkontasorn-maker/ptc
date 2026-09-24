@@ -119,6 +119,23 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
     });
   }));
 
+  router.get('/bookings/lookup', asyncHandler(async (req, res) => {
+    const email = deviceEmail(req, repos.verifications);
+    if (!email) throw new UnauthorizedError('Verify your email before continuing.');
+    let eventId = null;
+    if (req.query.event_id !== undefined && req.query.event_id !== '') {
+      eventId = parseRouteId(String(req.query.event_id), 'Event id');
+      if (!repos.events.findById(eventId)) throw new NotFoundError('Event not found');
+    }
+    const rows = repos.bookings.listForParent(email, eventId);
+    res.json({
+      bookings: rows.map((row) => presentBooking(row, {
+        displayName: row.display_name,
+        room: row.room,
+      })),
+    });
+  }));
+
   router.post('/bookings', rejectFrontOfficeWrite, asyncHandler(async (req, res) => {
     if (req.body && typeof req.body === 'object' && !Array.isArray(req.body) && typeof req.body.parent_email === 'string') {
       try {

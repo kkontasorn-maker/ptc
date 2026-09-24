@@ -6,6 +6,7 @@ import { asyncHandler } from '../http.js';
 import { presentMergedStaff, safePhotoUrl } from '../present.js';
 import { mergeStaff } from '../staff-merge.js';
 import { parseRouteId, validateRoomOverride, validateStaffAssign, validateStaffPatch } from '../validate.js';
+import { chunkSlots } from '../slots.js';
 
 function presentRecord(staff) {
   return {
@@ -51,7 +52,7 @@ async function loadPowerschool(psapi) {
   }
 }
 
-export function createStaffRoutes({ repos, psapi, mail }) {
+export function createStaffRoutes({ repos, psapi, mail, timeZone }) {
   const router = express.Router();
 
   router.get('/staff', requireAuth, asyncHandler(async (req, res) => {
@@ -79,6 +80,40 @@ export function createStaffRoutes({ repos, psapi, mail }) {
     const staff = mergeStaff(listed.teachers, repos.staff.list()).map(presentMergedStaff);
     res.json({ source: listed.source, staff });
   }));
+
+  router.get(
+    '/events/:eventId/services/:serviceId/staff/:staffId/slots',
+    requireAuth,
+    (req, res) => {
+      if (!['it_admin', 'front_office', 'teacher'].includes(req.user.role)) {
+        res.status(403).json({
+          error: { code: 'FORBIDDEN', message: 'You do not have access to this action' },
+        });
+        return;
+      }
+      const eventId = parseRouteId(req.params.eventId, 'Event id');
+      const serviceId = parseRouteId(req.params.serviceId, 'Service id');
+      const staffId = parseRouteId(req.params.staffId, 'Staff id');
+      if (!repos.events.findById(eventId)) throw new NotFoundError('Event not found');
+      const service = repos.services.findById(serviceId);
+      if (!service || service.event_id !== eventId) throw new NotFoundError('Service not found');
+      if (!repos.staff.findById(staffId)) throw new NotFoundError('Staff not found');
+      const assignment = repos.staff.findAssignment(staffId, serviceId);
+      if (!assignment || assignment.event_id !== eventId) {
+        throw new NotFoundError('That staff member is not assigned to this service');
+      }
+      const blocks = repos.availability.listBookableForStaffEvent(eventId, staffId);
+      const bookings = repos.bookings.listConfirmedForEvent(eventId)
+        .filter((booking) => booking.staff_id === staffId && booking.service_id === serviceId);
+      const slots = chunkSlots(blocks, service.slot_duration_minutes, bookings, timeZone);
+      res.json({
+        staff_id: staffId,
+        service_id: serviceId,
+        room_override: assignment.room_override ?? null,
+        slots,
+      });
+    },
+  );
 
   router.post('/staff/sync', requireItAdmin, asyncHandler(async (req, res) => {
     const listed = await psapi.listTeachers();

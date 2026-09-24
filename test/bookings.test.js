@@ -13,6 +13,7 @@ const roleMap = {
   'front.office@nis.ac.th': { role: 'front_office' },
   'teacher@nis.ac.th': { role: 'teacher', teacherid: 'T1001' },
   'other.teacher@nis.ac.th': { role: 'teacher', teacherid: 'T1002' },
+  'parent@nis.ac.th': { role: 'parent' },
 };
 
 function addDays(iso, days) {
@@ -32,6 +33,7 @@ let teacherCookie;
 let otherTeacherCookie;
 let frontCookie;
 let parentCookie;
+let parentSessionCookie;
 let aroonId;
 let mayaId;
 let priyaId;
@@ -123,6 +125,7 @@ describe('booking submission', { concurrency: false }, () => {
     teacherCookie = await login('teacher@nis.ac.th');
     otherTeacherCookie = await login('other.teacher@nis.ac.th');
     frontCookie = await login('front.office@nis.ac.th');
+    parentSessionCookie = await login('parent@nis.ac.th');
     const sync = await api('/api/v1/staff/sync', { method: 'POST', cookie: adminCookie, body: {} });
     aroonId = sync.json.staff.find((member) => member.powerschool_teacher_id === 'T1001').id;
     mayaId = sync.json.staff.find((member) => member.powerschool_teacher_id === 'T1002').id;
@@ -635,5 +638,145 @@ describe('booking submission', { concurrency: false }, () => {
       SELECT COUNT(*) AS n FROM bookings
       WHERE event_id = ? AND staff_id = ? AND student_powerschool_id = 'S1001' AND status = 'confirmed'
     `).get(sharedId, aroonId).n, 2);
+  });
+
+  test('staff slots route mirrors parent-view availability and marks taken slots', async () => {
+    const slotsPath = `/api/v1/events/${eventId}/services/${serviceId}/staff/${aroonId}/slots`;
+    const parentDenied = await api(slotsPath, { cookie: parentSessionCookie });
+    assert.equal(parentDenied.status, 403);
+
+    const mismatch = await api(
+      `/api/v1/events/${eventId}/services/${hiddenServiceId}/staff/${aroonId}/slots`,
+      { cookie: adminCookie },
+    );
+    assert.equal(mismatch.status, 404);
+
+    const unassigned = await api(
+      `/api/v1/events/${eventId}/services/${serviceId}/staff/999999/slots`,
+      { cookie: adminCookie },
+    );
+    assert.equal(unassigned.status, 404);
+
+    const before = await api(slotsPath, { cookie: teacherCookie });
+    assert.equal(before.status, 200, JSON.stringify(before.json));
+    assert.equal(before.json.staff_id, aroonId);
+    assert.equal(before.json.service_id, serviceId);
+    assert.equal(before.json.room_override, null);
+    assert.equal(before.json.slots.length, 4);
+    assert.ok(before.json.slots.every((slot) => typeof slot.available === 'boolean'));
+
+    await api(`/api/v1/services/${serviceId}/staff/${aroonId}`, {
+      method: 'PATCH',
+      cookie: adminCookie,
+      body: { room_override: 'Gym A' },
+    });
+    const withRoom = await api(slotsPath, { cookie: frontCookie });
+    assert.equal(withRoom.status, 200);
+    assert.equal(withRoom.json.room_override, 'Gym A');
+
+    const open = withRoom.json.slots.find((slot) => slot.available);
+    assert.ok(open);
+    const booked = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: parentCookie,
+      body: {
+        parent_email: 'parent@nis.ac.th',
+        parent_relationship: 'mother',
+        picks: [pick('S1001', aroonId, open)],
+      },
+    });
+    assert.equal(booked.status, 201, JSON.stringify(booked.json));
+
+    const after = await api(slotsPath, { cookie: adminCookie });
+    assert.equal(after.status, 200);
+    const taken = after.json.slots.find(
+      (slot) => slot.start_time === open.start_time && slot.end_time === open.end_time,
+    );
+    assert.equal(taken.available, false);
+  });
+
+  test('bookings lookup uses device email and optional event_id', async () => {
+    const anon = await api('/api/v1/bookings/lookup');
+    assert.equal(anon.status, 401);
+
+    const staffCookieDenied = await api('/api/v1/bookings/lookup', { cookie: adminCookie });
+    assert.equal(staffCookieDenied.status, 401);
+
+    const all = await api('/api/v1/bookings/lookup', { cookie: parentCookie });
+    assert.equal(all.status, 200, JSON.stringify(all.json));
+    assert.ok(Array.isArray(all.json.bookings));
+    assert.ok(all.json.bookings.length >= 1);
+    assert.ok(all.json.bookings.every((row) => row.parent_email === 'parent@nis.ac.th'));
+    assert.ok(all.json.bookings.every((row) => Object.prototype.hasOwnProperty.call(row, 'display_name')));
+    assert.ok(all.json.bookings.every((row) => Object.prototype.hasOwnProperty.call(row, 'room')));
+
+    const otherEvent = await api('/api/v1/events', {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { name: 'Lookup second conference', event_date: future },
+    });
+    const otherEventId = otherEvent.json.event.id;
+    const otherService = await api(`/api/v1/events/${otherEventId}/services`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { name: 'Second service', slot_duration_minutes: 15 },
+    });
+    const otherServiceId = otherService.json.service.id;
+    await api(`/api/v1/services/${otherServiceId}/staff`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { staff_id: mayaId },
+    });
+    await api(`/api/v1/events/${otherEventId}/staff/${mayaId}/availability`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { start_time: `${future}T10:00`, end_time: `${future}T11:00`, block_type: 'bookable' },
+    });
+    await api(`/api/v1/events/${otherEventId}`, {
+      method: 'PATCH',
+      cookie: adminCookie,
+      body: { is_open_for_booking: true },
+    });
+    const otherView = await api(
+      `/api/v1/events/${otherEventId}/parent-view?email=parent@nis.ac.th`,
+      { cookie: parentCookie },
+    );
+    assert.equal(otherView.status, 200, JSON.stringify(otherView.json));
+    const otherTeacher = otherView.json.children[0].teachers.find((teacher) => teacher.staff_id === mayaId);
+    const otherSlot = otherTeacher.slots.find((slot) => slot.available);
+    const secondBook = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: parentCookie,
+      body: {
+        parent_email: 'parent@nis.ac.th',
+        parent_relationship: 'mother',
+        picks: [{
+          student_powerschool_id: 'S1001',
+          service_id: otherServiceId,
+          staff_id: mayaId,
+          start_time: otherSlot.start_time,
+          end_time: otherSlot.end_time,
+        }],
+      },
+    });
+    assert.equal(secondBook.status, 201, JSON.stringify(secondBook.json));
+
+    const multi = await api('/api/v1/bookings/lookup', { cookie: parentCookie });
+    assert.equal(multi.status, 200);
+    const eventIds = new Set(multi.json.bookings.map((row) => row.event_id));
+    assert.ok(eventIds.has(eventId));
+    assert.ok(eventIds.has(otherEventId));
+
+    const filtered = await api(`/api/v1/bookings/lookup?event_id=${otherEventId}`, {
+      cookie: parentCookie,
+    });
+    assert.equal(filtered.status, 200, JSON.stringify(filtered.json));
+    assert.ok(filtered.json.bookings.length >= 1);
+    assert.ok(filtered.json.bookings.every((row) => row.event_id === otherEventId));
+
+    const missingEvent = await api('/api/v1/bookings/lookup?event_id=999999', {
+      cookie: parentCookie,
+    });
+    assert.equal(missingEvent.status, 404);
   });
 });

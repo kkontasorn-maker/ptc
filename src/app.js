@@ -129,7 +129,7 @@ export function createApp(config) {
   api.use(createBookingRoutes({ repos, psapi, timeZone: config.timeZone }));
   api.use(createEventRoutes({ repos, timeZone: config.timeZone }));
   api.use(createServiceRoutes({ repos }));
-  api.use(createStaffRoutes({ repos, psapi, mail }));
+  api.use(createStaffRoutes({ repos, psapi, mail, timeZone: config.timeZone }));
   api.use(createAvailabilityRoutes({ repos, timeZone: config.timeZone, mail }));
   api.use(createAgendaRoutes({ repos, timeZone: config.timeZone }));
   api.use(createIntegrationRoutes({ psapi, timeZone: config.timeZone }));

@@ -196,7 +196,24 @@ IT admins define optional text questions per event. Answers are stored once per 
 
 `POST /api/v1/bookings` accepts optional `custom_field_values: [{ field_id, value }]` (value ≤ 500 chars). Unknown `field_id` or a missing required field returns `400`. Values are saved in the same SQLite transaction as the booking claim. `GET /events/:eventId/parent-view` includes `custom_field_definitions`. The bookings report includes each row’s batch `custom_field_values`.
 
+## Slot grid and parent lookup
+
+Staff and front office can read the open/taken slot grid for one teacher on one service without going through parent-view:
+
+```bash
+curl -s -b cookies.txt \
+  http://127.0.0.1:47231/api/v1/events/1/services/1/staff/1/slots
+```
+
+Response shape: `{ staff_id, service_id, room_override, slots: [{ start_time, end_time, available }] }`. `room_override` is returned as stored (null when unset); this route does not fall back to a PowerSchool room.
+
+A verified parent device can list their own bookings (optional `?event_id=` filter). The email comes from the device cookie, not a query param:
+
+```bash
+curl -s -b parent-cookies.txt http://127.0.0.1:47231/api/v1/bookings/lookup
+curl -s -b parent-cookies.txt 'http://127.0.0.1:47231/api/v1/bookings/lookup?event_id=1'
+```
+
 ## Not in this slice
 
-- `GET /events/:eventId/services/:serviceId/staff/:staffId/slots` as its own route
-- `GET /bookings/lookup`
+(none for the admin-core booking API surface covered above)
