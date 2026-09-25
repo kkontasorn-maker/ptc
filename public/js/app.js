@@ -991,7 +991,7 @@ function PowerSchoolCard() {
   </article>`;
 }
 
-function EventsScreen({ user }) {
+function EventsScreen({ user, onSignOut }) {
   const canWrite = user.role === 'it_admin';
   const [state, setState] = useState({ loading: true, error: null, events: [] });
 
@@ -1017,7 +1017,7 @@ function EventsScreen({ user }) {
     return events;
   }, [state.events]);
 
-  return html`<${Shell} user=${user} active="events">
+  return html`<${Shell} user=${user} active="events" onSignOut=${onSignOut}>
     <div className="conferences-screen">
       <div className="screen-head conferences-head">
         <div>
@@ -1051,7 +1051,7 @@ function EventsScreen({ user }) {
   </${Shell}>`;
 }
 
-function NewEventScreen({ user }) {
+function NewEventScreen({ user, onSignOut }) {
   const canWrite = user.role === 'it_admin';
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
@@ -1077,7 +1077,7 @@ function NewEventScreen({ user }) {
     }
   }
 
-  return html`<${Shell} user=${user} active="events">
+  return html`<${Shell} user=${user} active="events" onSignOut=${onSignOut}>
     <a className="back" href="#/events">Conferences</a>
     <div className="screen-head section-gap">
       <div>
@@ -1163,7 +1163,7 @@ function BookingsReport({ event }) {
   </div>`;
 }
 
-function EventWorkspace({ user, eventId, section, timeZone }) {
+function EventWorkspace({ user, eventId, section, timeZone, onSignOut }) {
   const id = positiveId(eventId);
   const [state, setState] = useState({ loading: true, error: null, event: null });
   const [version, setVersion] = useState(0);
@@ -1184,10 +1184,10 @@ function EventWorkspace({ user, eventId, section, timeZone }) {
   }, [id, version]);
 
   if (!id) {
-    return html`<${Shell} user=${user} active="events"><div className="note">That conference does not exist.</div></${Shell}>`;
+    return html`<${Shell} user=${user} active="events" onSignOut=${onSignOut}><div className="note">That conference does not exist.</div></${Shell}>`;
   }
 
-  return html`<${Shell} user=${user} active="events">
+  return html`<${Shell} user=${user} active="events" onSignOut=${onSignOut}>
     <div className="event-admin">
       <a className="event-admin-back" href="#/events">← Conferences</a>
       ${state.loading && !state.event ? html`<p className="muted section-gap">Loading conference…</p>` : null}
@@ -2157,7 +2157,7 @@ function CustomFieldsPanel({ event, user }) {
   </div>`;
 }
 
-function StaffScreen({ user }) {
+function StaffScreen({ user, onSignOut }) {
   const canWrite = user.role === 'it_admin';
   const [state, setState] = useState({ loading: true, error: null, source: '', warning: '', staff: [] });
   const [schools, setSchools] = useState([]);
@@ -2274,7 +2274,7 @@ function StaffScreen({ user }) {
   const showToolbar = !state.loading && !state.error && state.staff.length > 0;
   const resultLabel = `${filteredStaff.length} ${filteredStaff.length === 1 ? 'teacher' : 'teachers'}`;
 
-  return html`<${Shell} user=${user} active="staff">
+  return html`<${Shell} user=${user} active="staff" onSignOut=${onSignOut}>
     <div className="screen-head staff-screen-head">
       <div>
         <h1 className="staff-title">Staff</h1>
@@ -2386,7 +2386,7 @@ function Avatar({ name, photo }) {
   return html`<span className="avatar" aria-hidden="true">${initials(name)}</span>`;
 }
 
-function StaffEditScreen({ user, staffId }) {
+function StaffEditScreen({ user, staffId, onSignOut }) {
   const id = positiveId(staffId);
   const canWrite = user.role === 'it_admin';
   const [member, setMember] = useState(null);
@@ -2446,7 +2446,7 @@ function StaffEditScreen({ user, staffId }) {
     }
   }
 
-  return html`<${Shell} user=${user} active="staff">
+  return html`<${Shell} user=${user} active="staff" onSignOut=${onSignOut}>
     <a className="back" href="#/staff">Staff</a>
     ${!id ? html`<div className="note section-gap">That staff member does not exist.</div>` : null}
     ${loading ? html`<p className="muted section-gap">Loading staff…</p>` : null}
@@ -2622,7 +2622,7 @@ function AgendaCalendar({ schedule, locked, onSelectRange, onPick, onChanged, on
   return html`<div className=${cx('agenda-calendar', locked && 'is-locked')} ref=${host}></div>`;
 }
 
-function AgendaScreen({ user, eventId, timeZone }) {
+function AgendaScreen({ user, eventId, timeZone, onSignOut }) {
   const id = positiveId(eventId);
   const [list, setList] = useState({ loading: true, error: null, events: [] });
   const [schedule, setSchedule] = useState(null);
@@ -2677,7 +2677,7 @@ function AgendaScreen({ user, eventId, timeZone }) {
   }, [user.role, id, loadSchedule]);
 
   if (user.role !== 'teacher') {
-    return html`<${Shell} user=${user} active="agenda">
+    return html`<${Shell} user=${user} active="agenda" onSignOut=${onSignOut}>
       <h1>Agenda</h1>
       <p className="lede">The agenda is for teachers.</p>
       <p className="section-gap"><a className="back" href="#/events">Conferences</a></p>
@@ -2686,7 +2686,7 @@ function AgendaScreen({ user, eventId, timeZone }) {
 
   if (!id) {
     const focusId = attentionEventId(list.events);
-    return html`<${Shell} user=${user} active="agenda">
+    return html`<${Shell} user=${user} active="agenda" onSignOut=${onSignOut}>
       <div className="screen-head">
         <div>
           <h1>Agenda</h1>
@@ -2783,7 +2783,7 @@ function AgendaScreen({ user, eventId, timeZone }) {
     setNotice(err.message);
   }
 
-  return html`<${Shell} user=${user} active="agenda">
+  return html`<${Shell} user=${user} active="agenda" onSignOut=${onSignOut}>
     <a className="back" href="#/agenda">Agenda</a>
     ${loading ? html`<p className="muted section-gap">Loading your day…</p>` : null}
     ${error ? html`<div className="note section-gap">${error}</div>` : null}
@@ -2869,7 +2869,7 @@ function IssueStatus({ issue }) {
   return html`<span className="pill">Unconfirmed</span>`;
 }
 
-function NotificationIssuesScreen({ user, timeZone }) {
+function NotificationIssuesScreen({ user, timeZone, onSignOut }) {
   const [state, setState] = useState({ loading: true, error: null, issues: [] });
 
   const load = useCallback(() => {
@@ -2881,7 +2881,7 @@ function NotificationIssuesScreen({ user, timeZone }) {
 
   useEffect(() => { load(); }, [load]);
 
-  return html`<${Shell} user=${user} active="notifications">
+  return html`<${Shell} user=${user} active="notifications" onSignOut=${onSignOut}>
     <div className="screen-head">
       <div>
         <h1>Notification issues</h1>
@@ -3264,7 +3264,7 @@ function LandingBlockEditorCard({
   </article>`;
 }
 
-function LandingPageEditorScreen({ user }) {
+function LandingPageEditorScreen({ user, onSignOut }) {
   const canWrite = user.role === 'it_admin';
   const [state, setState] = useState({ loading: true, error: null, blocks: [] });
   const [addType, setAddType] = useState('announcement');
@@ -3374,7 +3374,7 @@ function LandingPageEditorScreen({ user }) {
     }
   }
 
-  return html`<${Shell} user=${user} active="landing-page">
+  return html`<${Shell} user=${user} active="landing-page" onSignOut=${onSignOut}>
     <div className="screen-head">
       <div>
         <h1>Landing page</h1>
@@ -3488,18 +3488,18 @@ function App() {
     }} />`;
   }
 
-  if (route.name === 'landing-page') return html`<${LandingPageEditorScreen} user=${user} />`;
-  if (route.name === 'agenda') return html`<${AgendaScreen} user=${user} eventId=${route.id} timeZone=${timeZone} />`;
-  if (route.name === 'event-new') return html`<${NewEventScreen} user=${user} />`;
-  if (route.name === 'event') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="details" timeZone=${timeZone} />`;
-  if (route.name === 'services') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="services" timeZone=${timeZone} />`;
-  if (route.name === 'availability') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="availability" timeZone=${timeZone} />`;
-  if (route.name === 'custom-fields') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="custom-fields" timeZone=${timeZone} />`;
-  if (route.name === 'bookings') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="bookings" timeZone=${timeZone} />`;
-  if (route.name === 'notifications') return html`<${NotificationIssuesScreen} user=${user} timeZone=${timeZone} />`;
-  if (route.name === 'staff') return html`<${StaffScreen} user=${user} />`;
-  if (route.name === 'staff-edit') return html`<${StaffEditScreen} user=${user} staffId=${route.id} />`;
-  return html`<${EventsScreen} user=${user} />`;
+  if (route.name === 'landing-page') return html`<${LandingPageEditorScreen} user=${user} onSignOut=${signOut} />`;
+  if (route.name === 'agenda') return html`<${AgendaScreen} user=${user} eventId=${route.id} timeZone=${timeZone} onSignOut=${signOut} />`;
+  if (route.name === 'event-new') return html`<${NewEventScreen} user=${user} onSignOut=${signOut} />`;
+  if (route.name === 'event') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="details" timeZone=${timeZone} onSignOut=${signOut} />`;
+  if (route.name === 'services') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="services" timeZone=${timeZone} onSignOut=${signOut} />`;
+  if (route.name === 'availability') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="availability" timeZone=${timeZone} onSignOut=${signOut} />`;
+  if (route.name === 'custom-fields') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="custom-fields" timeZone=${timeZone} onSignOut=${signOut} />`;
+  if (route.name === 'bookings') return html`<${EventWorkspace} user=${user} eventId=${route.id} section="bookings" timeZone=${timeZone} onSignOut=${signOut} />`;
+  if (route.name === 'notifications') return html`<${NotificationIssuesScreen} user=${user} timeZone=${timeZone} onSignOut=${signOut} />`;
+  if (route.name === 'staff') return html`<${StaffScreen} user=${user} onSignOut=${signOut} />`;
+  if (route.name === 'staff-edit') return html`<${StaffEditScreen} user=${user} staffId=${route.id} onSignOut=${signOut} />`;
+  return html`<${EventsScreen} user=${user} onSignOut=${signOut} />`;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
