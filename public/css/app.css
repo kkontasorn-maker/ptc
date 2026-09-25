@@ -1527,8 +1527,8 @@ a.card.staff-row:focus-visible {
 }
 
 .staff-school-tag.tint-1 {
-  background: #FCEBEB;
-  color: #8C0E06;
+  background: var(--event-admin-advisory-bg, #FBF3E0);
+  color: var(--event-admin-advisory-text, #8A6116);
 }
 
 .staff-school-tag.tint-2 {
