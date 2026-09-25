@@ -5,7 +5,13 @@ import { notifyStrandedParents, readConfirmOverride, rejectIfStranded } from '..
 import { asyncHandler } from '../http.js';
 import { presentMergedStaff, safePhotoUrl } from '../present.js';
 import { mergeStaff } from '../staff-merge.js';
-import { parseRouteId, validateRoomOverride, validateStaffAssign, validateStaffPatch } from '../validate.js';
+import {
+  parseRouteId,
+  validateRoomOverride,
+  validateStaffAssign,
+  validateStaffPatch,
+  validateStaffSync,
+} from '../validate.js';
 import { chunkSlots } from '../slots.js';
 
 function presentRecord(staff) {
@@ -30,11 +36,16 @@ function prepareTeachers(teachers) {
       skipped += 1;
       continue;
     }
+    const schoolRaw = teacher.powerschool_school_id;
+    const powerschoolSchoolId = schoolRaw == null || String(schoolRaw).trim() === ''
+      ? null
+      : String(schoolRaw).trim();
     usable.push({
       powerschool_teacher_id: powerschoolTeacherId,
       display_name: displayName,
       email,
       photo_url: teacher.photo_url ?? null,
+      powerschool_school_id: powerschoolSchoolId,
     });
   }
   return { usable, skipped };
@@ -121,7 +132,27 @@ export function createStaffRoutes({ repos, psapi, mail, timeZone }) {
     },
   );
 
+  // Full sync: POST /staff/sync with {} (or no teacher_id).
+  // Pilot scoped sync: POST /staff/sync with { "teacher_id": 2957 } (PowerSchool id).
   router.post('/staff/sync', requireItAdmin, asyncHandler(async (req, res) => {
+    const { teacher_id: teacherId } = validateStaffSync(req.body);
+    if (teacherId != null) {
+      const fetched = await psapi.getTeacher(teacherId);
+      if (!fetched.teacher) throw new NotFoundError('Teacher not found');
+      const teachers = [fetched.teacher];
+      const { usable, skipped } = prepareTeachers(teachers);
+      const counts = repos.staff.sync(usable);
+      const staff = mergeStaff(teachers, repos.staff.list()).map(presentMergedStaff);
+      res.json({
+        source: fetched.source,
+        created: counts.created,
+        updated: counts.updated,
+        unchanged: counts.unchanged,
+        skipped,
+        staff,
+      });
+      return;
+    }
     const listed = await psapi.listTeachers();
     const { usable, skipped } = prepareTeachers(listed.teachers);
     const counts = repos.staff.sync(usable);

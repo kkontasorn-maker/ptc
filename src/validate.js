@@ -279,6 +279,22 @@ export function validateStaffAssign(body) {
   return { staff_id: data.staff_id };
 }
 
+/** Optional body for POST /staff/sync. Absent or `{}` keeps full sync. */
+export function validateStaffSync(body) {
+  if (body === undefined || body === null) return { teacher_id: null };
+  const data = requireObject(body);
+  assertAllowed(data, ['teacher_id']);
+  if (!Object.prototype.hasOwnProperty.call(data, 'teacher_id') || data.teacher_id === undefined) {
+    return { teacher_id: null };
+  }
+  if (typeof data.teacher_id !== 'number' || !Number.isInteger(data.teacher_id) || data.teacher_id < 1) {
+    throw new ValidationError('teacher_id must be a positive integer', [
+      { field: 'teacher_id', message: 'teacher_id must be a positive integer' },
+    ]);
+  }
+  return { teacher_id: data.teacher_id };
+}
+
 export function validateRoomOverride(body) {
   const data = requireObject(body);
   assertAllowed(data, ['room_override']);

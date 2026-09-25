@@ -288,6 +288,46 @@ export function createPsapiClient({
     return teachers;
   }
 
+  function teacherFromSingularPayload(payload, id) {
+    if (!payload || typeof payload !== 'object') return null;
+    const candidates = [
+      teacherFromRecord(payload),
+      teacherFromRecord(payload.record),
+      ...mapTeacherPayload(payload),
+      ...mapTeacherPayload(payload?.record ? { record: [payload.record] } : []),
+    ];
+    for (const teacher of candidates) {
+      if (teacher && teacher.powerschool_teacher_id === id) return teacher;
+    }
+    return null;
+  }
+
+  // Single-resource GET mirrors listTeachers URL with /{id}. If that path is
+  // unavailable, fall back to the full list and keep only the matching id —
+  // callers must not sync the other rows.
+  async function getTeacherFromPowerSchool(teacherId) {
+    const id = String(teacherId);
+    const token = await fetchAccessToken({ baseUrl, clientId, clientSecret, fetchImpl });
+    const singularPath = `${String(teachersPath).replace(/\/$/, '')}/${encodeURIComponent(id)}`;
+    const url = new URL(singularPath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
+    const response = await fetchImpl(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (response.ok) {
+      let payload;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+      const teacher = teacherFromSingularPayload(payload, id);
+      if (teacher) return teacher;
+    }
+    const listed = await listFromPowerSchool();
+    return listed.find((teacher) => teacher.powerschool_teacher_id === id) || null;
+  }
+
   async function listSchoolsFromPowerSchool() {
     // Exact PS endpoint / projection should be re-verified with real credentials.
     const token = await fetchAccessToken({ baseUrl, clientId, clientSecret, fetchImpl });
@@ -495,6 +535,18 @@ export function createPsapiClient({
       }
       const teachers = await remember(listFromPowerSchool);
       return { source: 'powerschool', teachers };
+    },
+    async getTeacher(teacherId) {
+      const id = String(teacherId);
+      if (!configured) {
+        const teacher = MOCK_TEACHERS.find((row) => row.powerschool_teacher_id === id);
+        return {
+          source: 'mock',
+          teacher: teacher ? { ...teacher } : null,
+        };
+      }
+      const teacher = await remember(() => getTeacherFromPowerSchool(id));
+      return { source: 'powerschool', teacher };
     },
     async listSchools() {
       if (!configured) {

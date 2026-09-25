@@ -101,7 +101,17 @@ The spec does not say whether “open for booking” decides draft versus upcomi
 
 A parent session receives `404 Event not found` for an unpublished conference, the same response as a missing id.
 
-`display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email and `powerschool_school_id` are refreshed from PowerSchool. Schools are listed and synced like staff: `GET /api/v1/schools` (it_admin / front_office / teacher) and `POST /api/v1/schools/sync` (it_admin). In the conference workspace, the **Schools** subnav (`#/events/:id/services`) groups services by school: IT admins toggle a school on/off (creates or activates a `<School name> Conference` service with `school_id`), edit slot length and travel time (`buffer_minutes`), and assign teachers whose `powerschool_school_id` matches. Services with `school_id` null stay under **Other** with the previous add/edit/assign UI. Services accept optional `school_id`, `buffer_minutes` (default 0), and `active`; parent-view schedules only active services, and `POST /bookings` rejects picks for an inactive service. Deactivation is non-destructive: existing confirmed bookings can still `PATCH /bookings/:id/reschedule`. Slot grids advance by duration + buffer between starts.
+`display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email and `powerschool_school_id` are refreshed from PowerSchool. `POST /api/v1/staff/sync` (it_admin) still full-syncs when the body omits `teacher_id`. For a real-data pilot, pass a PowerSchool teacher id to sync only that one row (example: teacher `2957`, `KKontasorn@nis.ac.th`, SchoolID `400`):
+
+```bash
+curl -X POST https://<host>/api/v1/staff/sync \
+  -H "Content-Type: application/json" \
+  -H "X-Requested-With: XMLHttpRequest" \
+  --cookie "<admin session cookie>" \
+  -d '{"teacher_id": 2957}'
+```
+
+Schools are listed and synced like staff: `GET /api/v1/schools` (it_admin / front_office / teacher) and `POST /api/v1/schools/sync` (it_admin). In the conference workspace, the **Schools** subnav (`#/events/:id/services`) groups services by school: IT admins toggle a school on/off (creates or activates a `<School name> Conference` service with `school_id`), edit slot length and travel time (`buffer_minutes`), and assign teachers whose `powerschool_school_id` matches. Services with `school_id` null stay under **Other** with the previous add/edit/assign UI. Services accept optional `school_id`, `buffer_minutes` (default 0), and `active`; parent-view schedules only active services, and `POST /bookings` rejects picks for an inactive service. Deactivation is non-destructive: existing confirmed bookings can still `PATCH /bookings/:id/reschedule`. Slot grids advance by duration + buffer between starts.
 
 Guardian lookups are cached for 5 minutes per email. Slot availability is computed on each parent-view request. `room_override` on a staff assignment replaces the PowerSchool room when it is set. Assign remains `{ staff_id }`. IT admins set or clear the override with `PATCH /api/v1/services/{serviceId}/staff/{staffId}` and `{ "room_override": "Gym" }` (`null` or `""` clears it back to the PowerSchool room).
 
