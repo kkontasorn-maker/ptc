@@ -352,7 +352,7 @@ function SignIn({ auth, notice, onSignedIn }) {
         <div className="screen-head">
           <div>
             <h1>Sign in</h1>
-            <p className="lede">ICT and front office use the NIS account assigned to conferences.</p>
+            <p className="lede">ICT, front office, and teachers use the NIS account assigned to conferences.</p>
           </div>
         </div>
         <div className="stack">
