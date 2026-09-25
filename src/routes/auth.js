@@ -1,7 +1,8 @@
 import express from 'express';
-import { NotFoundError, UnauthorizedError } from '../errors.js';
+import { NotFoundError, UnauthorizedError, ValidationError } from '../errors.js';
 import { asyncHandler } from '../http.js';
-import { resolveRole } from '../auth/roles.js';
+import { resolveRole, sessionUser } from '../auth/roles.js';
+import { requireAuth } from '../auth/access.js';
 import { googleAuthorizationUrl, googleEmailFromCode } from '../auth/google.js';
 import {
   OAUTH_STATE_COOKIE,
@@ -14,7 +15,7 @@ import {
   setOauthStateCookie,
   setSessionCookie,
 } from '../auth/session.js';
-import { validateLocalLogin } from '../validate.js';
+import { validateLocalLogin, validateSwitchRole } from '../validate.js';
 
 function externalBase(req) {
   const forwarded = req.get('x-forwarded-proto');
@@ -28,6 +29,14 @@ function redirectUriFor(req, config) {
 
 function authInfo(config) {
   return { local: config.localAuth, google: config.google.configured };
+}
+
+function issueSession(res, user, config, cookieOptions) {
+  setSessionCookie(res, createSessionToken({
+    email: user.email,
+    activeRole: user.activeRole,
+    roles: user.roles,
+  }, config.sessionSecret), cookieOptions);
 }
 
 export function createAuthRoutes(config) {
@@ -58,7 +67,7 @@ export function createAuthRoutes(config) {
     if (!user) {
       throw new UnauthorizedError('That email is not assigned a role on this server');
     }
-    setSessionCookie(res, createSessionToken(user.email, config.sessionSecret), cookieOptions);
+    issueSession(res, user, config, cookieOptions);
     res.json({
       user,
       time_zone: config.timeZone,
@@ -69,6 +78,28 @@ export function createAuthRoutes(config) {
   router.delete('/session', (req, res) => {
     clearSessionCookie(res, cookieOptions);
     res.json({ ok: true });
+  });
+
+  router.post('/switch-role', requireAuth, (req, res) => {
+    const { role } = validateSwitchRole(req.body);
+    if (!req.user.roles.includes(role)) {
+      throw new ValidationError('Role is not assigned to this account', [
+        { field: 'role', message: 'Role is not assigned to this account' },
+      ]);
+    }
+    const user = sessionUser({
+      email: req.user.email,
+      roles: req.user.roles,
+      teacherid: req.user.teacherid,
+    }, role);
+    issueSession(res, user, config, cookieOptions);
+    res.json({
+      user,
+      activeRole: user.activeRole,
+      roles: user.roles,
+      time_zone: config.timeZone,
+      auth: authInfo(config),
+    });
   });
 
   router.get('/google', (req, res) => {
@@ -114,7 +145,7 @@ export function createAuthRoutes(config) {
         fail('unassigned');
         return;
       }
-      setSessionCookie(res, createSessionToken(user.email, config.sessionSecret), cookieOptions);
+      issueSession(res, user, config, cookieOptions);
       res.redirect('/#/events');
     } catch (error) {
       console.error(error);

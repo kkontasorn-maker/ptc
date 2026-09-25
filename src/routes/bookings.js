@@ -78,7 +78,7 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
   const router = express.Router();
 
   router.get('/events/:eventId/bookings', requireAuth, asyncHandler(async (req, res) => {
-    if (req.user.role !== 'it_admin' && req.user.role !== 'front_office') {
+    if (req.user.activeRole !== 'it_admin' && req.user.activeRole !== 'front_office') {
       throw new ForbiddenError('You do not have access to this action');
     }
     const eventId = parseRouteId(req.params.eventId, 'Event id');
@@ -348,7 +348,7 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
 function assertCanChange(req, booking, assignment, verifications) {
   const email = deviceEmail(req, verifications);
   const parentMatch = Boolean(email) && email === booking.parent_email;
-  const teacherMatch = req.user?.role === 'teacher'
+  const teacherMatch = req.user?.activeRole === 'teacher'
     && Boolean(req.user.teacherid)
     && assignment
     && req.user.teacherid === assignment.powerschool_teacher_id;

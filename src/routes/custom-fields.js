@@ -30,7 +30,7 @@ export function createCustomFieldRoutes({ repos }) {
   const router = express.Router();
 
   router.get('/events/:eventId/custom-fields', requireAuth, (req, res) => {
-    if (req.user.role !== 'it_admin' && req.user.role !== 'front_office') {
+    if (req.user.activeRole !== 'it_admin' && req.user.activeRole !== 'front_office') {
       res.status(403).json({
         error: { code: 'FORBIDDEN', message: 'You do not have access to this action' },
       });

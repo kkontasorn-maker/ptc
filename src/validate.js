@@ -332,6 +332,24 @@ export function validateLocalLogin(body) {
   return { email };
 }
 
+export function validateSwitchRole(body) {
+  const data = requireObject(body);
+  assertAllowed(data, ['role']);
+  if (typeof data.role !== 'string' || !data.role.trim()) {
+    throw new ValidationError('Role is required', [
+      { field: 'role', message: 'Role is required' },
+    ]);
+  }
+  const role = data.role.trim();
+  const allowed = new Set(['it_admin', 'front_office', 'teacher', 'parent']);
+  if (!allowed.has(role)) {
+    throw new ValidationError('Role is not valid', [
+      { field: 'role', message: 'Role is not valid' },
+    ]);
+  }
+  return { role };
+}
+
 function readBlockType(value, details) {
   if (value !== 'bookable' && value !== 'break') {
     details.push({ field: 'block_type', message: 'Block type must be bookable or break' });

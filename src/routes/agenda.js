@@ -12,11 +12,11 @@ export function createAgendaRoutes({ repos, timeZone }) {
   // Teacher agenda only. staff_id in the query or body is ignored: the
   // staff row comes from the session's powerschool teacher id.
   router.get('/events/:eventId/my-schedule', requireAuth, (req, res) => {
-    if (req.user.role !== 'teacher') {
+    if (req.user.activeRole !== 'teacher') {
       throw new ForbiddenError('You do not have access to this action');
     }
     const eventId = parseRouteId(req.params.eventId, 'Event id');
-    const event = assertEventVisible(repos.events.findById(eventId), req.user.role);
+    const event = assertEventVisible(repos.events.findById(eventId), req.user.activeRole);
     const staff = req.user.teacherid
       ? repos.staff.findByTeacherId(req.user.teacherid)
       : null;

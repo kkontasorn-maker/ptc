@@ -18,8 +18,28 @@ export function loadRoleMap(filePath) {
     throw new Error(`Role map at ${filePath} must be a JSON object`);
   }
   const map = {};
-  for (const [email, entry] of Object.entries(parsed)) {
-    map[String(email).trim().toLowerCase()] = entry;
+  for (const [email, raw] of Object.entries(parsed)) {
+    const key = String(email).trim().toLowerCase();
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error(`Role map entry for ${key} must be an object`);
+    }
+    let roles;
+    if (Array.isArray(raw.roles)) {
+      roles = raw.roles.map((role) => String(role).trim()).filter(Boolean);
+    } else if (typeof raw.role === 'string' && raw.role.trim()) {
+      // Accept legacy single-role entries and normalize to a one-item list.
+      roles = [raw.role.trim()];
+    } else {
+      throw new Error(`Role map entry for ${key} must include a roles array`);
+    }
+    if (!roles.length) {
+      throw new Error(`Role map entry for ${key} must include at least one role`);
+    }
+    const entry = { roles };
+    if (Object.prototype.hasOwnProperty.call(raw, 'teacherid')) {
+      entry.teacherid = raw.teacherid;
+    }
+    map[key] = entry;
   }
   return map;
 }

@@ -3,7 +3,7 @@ import express from 'express';
 import { openDatabase } from './db.js';
 import { errorHandler } from './http.js';
 import { ForbiddenError } from './errors.js';
-import { resolveRole } from './auth/roles.js';
+import { resolveSessionUser } from './auth/roles.js';
 import { parseCookies, readSessionToken, SESSION_COOKIE } from './auth/session.js';
 import { createPsapiClient } from './psapi/client.js';
 import { EventRepository } from './repositories/EventRepository.js';
@@ -112,7 +112,7 @@ export function createApp(config) {
   app.use((req, res, next) => {
     const cookies = parseCookies(req.headers.cookie);
     const session = readSessionToken(cookies[SESSION_COOKIE], config.sessionSecret);
-    req.user = session ? resolveRole(session.email, config.roleMap) : null;
+    req.user = session ? resolveSessionUser(session, config.roleMap) : null;
     next();
   });
 

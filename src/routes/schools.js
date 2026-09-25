@@ -51,7 +51,7 @@ export function createSchoolRoutes({ repos, psapi }) {
   const router = express.Router();
 
   router.get('/schools', requireAuth, asyncHandler(async (req, res) => {
-    if (!['it_admin', 'front_office', 'teacher'].includes(req.user.role)) {
+    if (!['it_admin', 'front_office', 'teacher'].includes(req.user.activeRole)) {
       res.status(403).json({
         error: { code: 'FORBIDDEN', message: 'You do not have access to this action' },
       });

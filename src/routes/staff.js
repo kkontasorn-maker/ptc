@@ -67,7 +67,7 @@ export function createStaffRoutes({ repos, psapi, mail, timeZone }) {
   const router = express.Router();
 
   router.get('/staff', requireAuth, asyncHandler(async (req, res) => {
-    if (!['it_admin', 'front_office', 'teacher'].includes(req.user.role)) {
+    if (!['it_admin', 'front_office', 'teacher'].includes(req.user.activeRole)) {
       res.status(403).json({
         error: { code: 'FORBIDDEN', message: 'You do not have access to this action' },
       });
@@ -96,7 +96,7 @@ export function createStaffRoutes({ repos, psapi, mail, timeZone }) {
     '/events/:eventId/services/:serviceId/staff/:staffId/slots',
     requireAuth,
     (req, res) => {
-      if (!['it_admin', 'front_office', 'teacher'].includes(req.user.role)) {
+      if (!['it_admin', 'front_office', 'teacher'].includes(req.user.activeRole)) {
         res.status(403).json({
           error: { code: 'FORBIDDEN', message: 'You do not have access to this action' },
         });

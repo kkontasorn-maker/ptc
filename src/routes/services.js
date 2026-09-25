@@ -15,7 +15,7 @@ export function createServiceRoutes({ repos }) {
 
   router.get('/events/:eventId/services', requireAuth, (req, res) => {
     const eventId = parseRouteId(req.params.eventId, 'Event id');
-    assertEventVisible(repos.events.findById(eventId), req.user.role);
+    assertEventVisible(repos.events.findById(eventId), req.user.activeRole);
     const assignments = repos.staff.listAssignmentsForEvent(eventId);
     const services = repos.services.listByEvent(eventId).map((service) => presentService(
       service,

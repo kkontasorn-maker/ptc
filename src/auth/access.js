@@ -9,7 +9,7 @@ export function requireAuth(req, res, next) {
 }
 
 export function rejectFrontOfficeWrite(req, res, next) {
-  if (req.user?.role === 'front_office') {
+  if (req.user?.activeRole === 'front_office') {
     next(new ForbiddenError('You do not have access to this action'));
     return;
   }
@@ -21,7 +21,7 @@ export function requireItAdminOrFrontOffice(req, res, next) {
     next(new UnauthorizedError('Sign in required'));
     return;
   }
-  if (req.user.role === 'it_admin' || req.user.role === 'front_office') {
+  if (req.user.activeRole === 'it_admin' || req.user.activeRole === 'front_office') {
     next();
     return;
   }
@@ -33,7 +33,7 @@ export function requireItAdmin(req, res, next) {
     next(new UnauthorizedError('Sign in required'));
     return;
   }
-  if (req.user.role !== 'it_admin') {
+  if (req.user.activeRole !== 'it_admin') {
     next(new ForbiddenError('You do not have access to this action'));
     return;
   }
@@ -53,9 +53,9 @@ function teacherOwns(user, staff) {
 
 export function assertCanReadAvailability(user, staff) {
   if (!user) throw new UnauthorizedError('Sign in required');
-  if (user.role === 'it_admin' || user.role === 'front_office') return;
-  if (user.role === 'teacher' && teacherOwns(user, staff)) return;
-  if (user.role === 'teacher') {
+  if (user.activeRole === 'it_admin' || user.activeRole === 'front_office') return;
+  if (user.activeRole === 'teacher' && teacherOwns(user, staff)) return;
+  if (user.activeRole === 'teacher') {
     throw new ForbiddenError('You can only view your own availability');
   }
   throw new ForbiddenError('You do not have access to this action');
@@ -63,9 +63,9 @@ export function assertCanReadAvailability(user, staff) {
 
 export function assertCanWriteAvailability(user, staff) {
   if (!user) throw new UnauthorizedError('Sign in required');
-  if (user.role === 'it_admin') return;
-  if (user.role === 'teacher' && teacherOwns(user, staff)) return;
-  if (user.role === 'teacher') {
+  if (user.activeRole === 'it_admin') return;
+  if (user.activeRole === 'teacher' && teacherOwns(user, staff)) return;
+  if (user.activeRole === 'teacher') {
     throw new ForbiddenError('You can only change your own availability');
   }
   throw new ForbiddenError('You do not have access to this action');

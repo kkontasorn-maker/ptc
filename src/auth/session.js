@@ -46,15 +46,28 @@ function unsign(token, secret) {
   }
 }
 
-export function createSessionToken(email, secret, now = Date.now()) {
-  return sign({ email, exp: now + SESSION_MS }, secret);
+export function createSessionToken({ email, activeRole, roles }, secret, now = Date.now()) {
+  return sign({
+    email,
+    activeRole,
+    roles: Array.isArray(roles) ? [...roles] : [],
+    exp: now + SESSION_MS,
+  }, secret);
 }
 
 export function readSessionToken(token, secret, now = Date.now()) {
   const payload = unsign(token, secret);
   if (!payload || typeof payload.email !== 'string' || typeof payload.exp !== 'number') return null;
   if (payload.exp < now) return null;
-  return { email: payload.email };
+  const roles = Array.isArray(payload.roles)
+    ? payload.roles.filter((role) => typeof role === 'string')
+    : undefined;
+  const activeRole = typeof payload.activeRole === 'string' ? payload.activeRole : undefined;
+  return {
+    email: payload.email,
+    ...(activeRole !== undefined ? { activeRole } : {}),
+    ...(roles !== undefined ? { roles } : {}),
+  };
 }
 
 export function createOauthState(secret) {

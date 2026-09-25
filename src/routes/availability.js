@@ -28,7 +28,7 @@ export function createAvailabilityRoutes({ repos, timeZone, mail }) {
   router.get('/events/:eventId/staff/:staffId/availability', requireAuth, (req, res) => {
     const eventId = parseRouteId(req.params.eventId, 'Event id');
     const staffId = parseRouteId(req.params.staffId, 'Staff id');
-    const event = assertEventVisible(repos.events.findById(eventId), req.user.role);
+    const event = assertEventVisible(repos.events.findById(eventId), req.user.activeRole);
     const staff = repos.staff.findById(staffId);
     if (!staff) throw new NotFoundError('Staff not found');
     assertCanReadAvailability(req.user, staff);
@@ -42,7 +42,7 @@ export function createAvailabilityRoutes({ repos, timeZone, mail }) {
   router.post('/events/:eventId/staff/:staffId/availability', requireAuth, rejectFrontOfficeWrite, asyncHandler(async (req, res) => {
     const eventId = parseRouteId(req.params.eventId, 'Event id');
     const staffId = parseRouteId(req.params.staffId, 'Staff id');
-    const event = assertEventVisible(repos.events.findById(eventId), req.user.role);
+    const event = assertEventVisible(repos.events.findById(eventId), req.user.activeRole);
     const staff = repos.staff.findById(staffId);
     if (!staff) throw new NotFoundError('Staff not found');
     assertCanWriteAvailability(req.user, staff);
@@ -85,7 +85,7 @@ export function createAvailabilityRoutes({ repos, timeZone, mail }) {
     const staff = repos.staff.findById(existing.staff_id);
     if (!staff) throw new NotFoundError('Staff not found');
     assertCanWriteAvailability(req.user, staff);
-    const event = assertEventVisible(repos.events.findById(existing.event_id), req.user.role);
+    const event = assertEventVisible(repos.events.findById(existing.event_id), req.user.activeRole);
     assertOpenForChanges(event, timeZone);
     const input = validateAvailabilityPatch(req.body, existing, timeZone);
     const block = repos.availability.update(id, input);
@@ -100,7 +100,7 @@ export function createAvailabilityRoutes({ repos, timeZone, mail }) {
     const staff = repos.staff.findById(existing.staff_id);
     if (!staff) throw new NotFoundError('Staff not found');
     assertCanWriteAvailability(req.user, staff);
-    const event = assertEventVisible(repos.events.findById(existing.event_id), req.user.role);
+    const event = assertEventVisible(repos.events.findById(existing.event_id), req.user.activeRole);
     assertOpenForChanges(event, timeZone);
     const result = repos.availability.deleteIfNoConfirmedBooking(id);
     if (result.missing) throw new NotFoundError('Availability block not found');
