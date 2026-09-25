@@ -247,6 +247,20 @@ function IconInfo() {
   </svg>`;
 }
 
+function IconSearch() {
+  return html`<svg className="staff-search-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="10.5" cy="10.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M15 15l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>`;
+}
+
+function schoolTintIndex(schoolId) {
+  const raw = String(schoolId || '');
+  let hash = 0;
+  for (let i = 0; i < raw.length; i += 1) hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+  return Math.abs(hash) % 3;
+}
+
 function IconChevronDown() {
   return html`<svg className="schools-chevron" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M6.5 9.5L12 15l5.5-5.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -2146,19 +2160,30 @@ function CustomFieldsPanel({ event, user }) {
 function StaffScreen({ user }) {
   const canWrite = user.role === 'it_admin';
   const [state, setState] = useState({ loading: true, error: null, source: '', warning: '', staff: [] });
+  const [schools, setSchools] = useState([]);
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState('');
+  const [search, setSearch] = useState('');
+  const [schoolFilter, setSchoolFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('name-asc');
 
   const load = useCallback(() => {
     setState((current) => ({ ...current, loading: true, error: null }));
-    api('/staff')
-      .then((data) => setState({
-        loading: false,
-        error: null,
-        source: data.source || '',
-        warning: data.warning || '',
-        staff: data.staff || [],
-      }))
+    Promise.all([
+      api('/staff'),
+      api('/schools').catch(() => ({ schools: [] })),
+    ])
+      .then(([data, schoolsData]) => {
+        setState({
+          loading: false,
+          error: null,
+          source: data.source || '',
+          warning: data.warning || '',
+          staff: data.staff || [],
+        });
+        setSchools(schoolsData.schools || []);
+      })
       .catch((error) => setState({ loading: false, error, source: '', warning: '', staff: [] }));
   }, []);
 
@@ -2179,43 +2204,174 @@ function StaffScreen({ user }) {
     }
   }
 
+  const schoolById = useMemo(() => {
+    const map = new Map();
+    for (const school of schools) {
+      const key = String(school.powerschool_school_id || '').trim();
+      if (key) map.set(key, school);
+    }
+    return map;
+  }, [schools]);
+
+  const schoolOptions = useMemo(() => {
+    const seen = new Set();
+    const options = [];
+    for (const member of state.staff) {
+      const key = String(member.powerschool_school_id || '').trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const school = schoolById.get(key);
+      options.push({
+        id: key,
+        name: school?.name || `School ${key}`,
+      });
+    }
+    options.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    return options;
+  }, [state.staff, schoolById]);
+
+  const filteredStaff = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    let rows = state.staff.filter((member) => {
+      if (needle) {
+        const name = String(member.display_name || '').toLowerCase();
+        const email = String(member.email || '').toLowerCase();
+        if (!name.includes(needle) && !email.includes(needle)) return false;
+      }
+      if (schoolFilter) {
+        if (String(member.powerschool_school_id || '').trim() !== schoolFilter) return false;
+      }
+      if (statusFilter === 'active' && !member.active) return false;
+      if (statusFilter === 'inactive' && member.active) return false;
+      return true;
+    });
+
+    const schoolName = (member) => {
+      const key = String(member.powerschool_school_id || '').trim();
+      return schoolById.get(key)?.name || key || '';
+    };
+    const roomKey = (member) => String(member.powerschool_room || '').toLowerCase();
+    const nameKey = (member) => String(member.display_name || '').toLowerCase();
+
+    rows = rows.slice().sort((a, b) => {
+      if (sortBy === 'name-desc') return nameKey(b).localeCompare(nameKey(a));
+      if (sortBy === 'room') {
+        const roomCmp = roomKey(a).localeCompare(roomKey(b));
+        if (roomCmp !== 0) return roomCmp;
+        return nameKey(a).localeCompare(nameKey(b));
+      }
+      if (sortBy === 'school') {
+        const schoolCmp = schoolName(a).localeCompare(schoolName(b), undefined, { sensitivity: 'base' });
+        if (schoolCmp !== 0) return schoolCmp;
+        return nameKey(a).localeCompare(nameKey(b));
+      }
+      return nameKey(a).localeCompare(nameKey(b));
+    });
+    return rows;
+  }, [state.staff, search, schoolFilter, statusFilter, sortBy, schoolById]);
+
   const unsynced = state.staff.filter((member) => !member.synced).length;
+  const showToolbar = !state.loading && !state.error && state.staff.length > 0;
+  const resultLabel = `${filteredStaff.length} ${filteredStaff.length === 1 ? 'teacher' : 'teachers'}`;
 
   return html`<${Shell} user=${user} active="staff">
-    <div className="screen-head">
+    <div className="screen-head staff-screen-head">
       <div>
-        <h1>Staff</h1>
+        <h1 className="staff-title">Staff</h1>
         <p className="lede">Teachers come from PowerSchool. Display name and photo stay as you set them.</p>
       </div>
-      ${canWrite && !state.error ? html`<button type="button" className="btn btn-primary" disabled=${busy} onClick=${sync}>${busy ? 'Syncing…' : 'Sync from PowerSchool'}</button>` : null}
+      ${canWrite && !state.error ? html`<button type="button" className="btn btn-primary staff-sync-btn" disabled=${busy} onClick=${sync}>${busy ? 'Syncing…' : 'Sync from PowerSchool'}</button>` : null}
       ${state.error ? html`<button type="button" className="btn btn-primary" onClick=${load}>Try again</button>` : null}
     </div>
-    <div className="stack">
+    <div className="stack staff-screen">
       <${AccessNote} user=${user} />
-      ${success ? html`<div><span className="success-note">${success}</span></div>` : null}
+      ${success ? html`<div className="schools-banner schools-banner-success" role="status">
+        <${IconCheck} />
+        <span>${success}</span>
+      </div>` : null}
       ${state.warning ? html`<div className="note">${state.warning}</div>` : null}
-      ${state.source === 'mock' ? html`<p className="muted">Showing the PowerSchool stand-in. Set PSAPI credentials to sync the live teacher list.</p>` : null}
+      ${state.source === 'mock' ? html`<div className="schools-banner schools-banner-advisory" role="status">
+        <${IconInfo} />
+        <span>Showing the PowerSchool stand-in. Set PSAPI credentials to sync the live teacher list.</span>
+      </div>` : null}
       ${unsynced > 0 ? html`<p className="muted">${unsynced === 1 ? '1 teacher is not saved locally yet.' : `${unsynced} teachers are not saved locally yet.`} Sync to add them.</p>` : null}
       ${state.loading ? html`<p className="muted">Loading staff…</p>` : null}
       ${state.error ? html`<div className="note">${state.error.message}</div>` : null}
-      ${!state.loading && !state.error && state.staff.length === 0 ? html`<div className="card">
+      ${!state.loading && !state.error && state.staff.length === 0 ? html`<div className="card staff-empty">
         <p>No teachers on file.</p>
         <p className="lede">Sync from PowerSchool to pull the current staff list.</p>
       </div>` : null}
-      <div className="list">
-        ${state.staff.map((member) => {
-          const inner = html`<div className="person">
-            <${Avatar} name=${member.display_name} photo=${member.photo_url} />
-            <span>
-              <span className="person-name">${member.display_name}</span>
-              <span className="event-meta">${member.email}${member.powerschool_room ? ` · Room ${member.powerschool_room}` : ''}</span>
+      ${showToolbar ? html`<div className="staff-toolbar" role="search">
+        <label className="staff-search">
+          <span className="visually-hidden">Search staff</span>
+          <${IconSearch} />
+          <input
+            className="input staff-search-input"
+            type="search"
+            placeholder="Search name or email"
+            value=${search}
+            onInput=${(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <label className="staff-filter">
+          <span className="visually-hidden">School</span>
+          <select className="input staff-select" value=${schoolFilter} onChange=${(event) => setSchoolFilter(event.target.value)}>
+            <option value="">All schools</option>
+            ${schoolOptions.map((school) => html`<option value=${school.id} key=${school.id}>${school.name}</option>`)}
+          </select>
+        </label>
+        <div className="staff-status-seg" role="group" aria-label="Status">
+          <button type="button" className=${cx('staff-seg', statusFilter === 'all' && 'is-selected')} aria-pressed=${statusFilter === 'all' ? 'true' : 'false'} onClick=${() => setStatusFilter('all')}>All</button>
+          <button type="button" className=${cx('staff-seg', statusFilter === 'active' && 'is-selected')} aria-pressed=${statusFilter === 'active' ? 'true' : 'false'} onClick=${() => setStatusFilter('active')}>Active</button>
+          <button type="button" className=${cx('staff-seg', statusFilter === 'inactive' && 'is-selected')} aria-pressed=${statusFilter === 'inactive' ? 'true' : 'false'} onClick=${() => setStatusFilter('inactive')}>Inactive</button>
+        </div>
+        <label className="staff-sort">
+          <span className="visually-hidden">Sort</span>
+          <select className="input staff-select" value=${sortBy} onChange=${(event) => setSortBy(event.target.value)}>
+            <option value="name-asc">Name A–Z</option>
+            <option value="name-desc">Name Z–A</option>
+            <option value="room">Room</option>
+            <option value="school">School</option>
+          </select>
+        </label>
+      </div>` : null}
+      ${showToolbar ? html`<p className="staff-result-count">${resultLabel}</p>` : null}
+      ${showToolbar && filteredStaff.length === 0 ? html`<div className="staff-empty-filter">
+        <p>No staff match your filters</p>
+      </div>` : null}
+      <div className="staff-list">
+        ${filteredStaff.map((member) => {
+          const schoolKey = String(member.powerschool_school_id || '').trim();
+          const school = schoolKey ? schoolById.get(schoolKey) : null;
+          const schoolLabel = school?.name || (schoolKey ? `School ${schoolKey}` : '');
+          const roomLabel = member.powerschool_room ? `Room ${member.powerschool_room}` : null;
+          const statusClass = !member.synced
+            ? 'is-unsynced'
+            : member.active ? 'is-active' : 'is-inactive';
+          const statusLabel = !member.synced
+            ? 'Not synced'
+            : member.active ? 'Active' : 'Inactive';
+          const avatarFallback = member.email
+            ? emailInitials(member.email)
+            : initials(member.display_name);
+          const rowInner = html`
+            <span className="staff-row-avatar" aria-hidden="true">${member.photo_url
+              ? html`<${Avatar} name=${member.display_name} photo=${member.photo_url} />`
+              : avatarFallback}</span>
+            <span className="staff-row-copy">
+              <span className="staff-row-name">${member.display_name}</span>
+              <span className="staff-row-email">${member.email || 'No email'}</span>
+              ${roomLabel ? html`<span className="schools-room-pill">${roomLabel}</span>` : null}
             </span>
-          </div>`;
-          const meta = html`<span className="pill">${member.synced ? (member.active ? 'Active' : 'Inactive') : 'Not synced'}</span>`;
+            <span className="staff-row-meta">
+              ${schoolLabel ? html`<span className=${`staff-school-tag tint-${schoolTintIndex(schoolKey)}`}>${schoolLabel}</span>` : null}
+              <span className=${cx('staff-status-pill', statusClass)}>${statusLabel}</span>
+            </span>
+          `;
           if (!member.id) {
-            return html`<div className="card staff-line" key=${member.powerschool_teacher_id}>${inner}${meta}</div>`;
+            return html`<div className="card staff-row" key=${member.powerschool_teacher_id}>${rowInner}</div>`;
           }
-          return html`<a className="card staff-line" href=${`#/staff/${member.id}`} key=${member.id}>${inner}${meta}</a>`;
+          return html`<a className="card staff-row" href=${`#/staff/${member.id}`} key=${member.id}>${rowInner}</a>`;
         })}
       </div>
     </div>
