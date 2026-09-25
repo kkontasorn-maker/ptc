@@ -25,7 +25,7 @@ Anonymous visitors land on the public home page. Staff sign-in is [Sign in](http
 
 Google Workspace sign-in is used when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set. Until then, the email form above is the local fallback and does not check a password. Set `ALLOW_LOCAL_AUTH=false` once Google is configured.
 
-PowerSchool teacher sync and guardian lookup use the built-in stand-in lists until `PSAPI_BASE_URL`, `PSAPI_CLIENT_ID`, and `PSAPI_CLIENT_SECRET` are set. The stand-in guardians are `parent@nis.ac.th` and `father@example.com` (both match Niran Srisuk, grade 5, and Malee Srisuk, grade 2). With PowerSchool configured, a guardian match walks email addresses to people, then to active student contacts, and loads those students by dcid. See `.env.example`.
+PowerSchool teacher sync and guardian lookup use the built-in stand-in lists until `PSAPI_BASE_URL`, `PSAPI_CLIENT_ID`, and `PSAPI_CLIENT_SECRET` are set. The stand-in guardians are `parent@nis.ac.th` and `father@example.com` (both match Niran Srisuk, grade 5, and Malee Srisuk, grade 2). Mock schools are Elementary / Middle / High (`powerschool_school_id` `1` / `2` / `3`), and mock teachers carry matching school ids. With PowerSchool configured, a guardian match walks email addresses to people, then to active student contacts, and loads those students by dcid. See `.env.example`.
 
 Sign in as `it.admin@nis.ac.th` and open Conferences. The PowerSchool card shows whether the last live call succeeded, and **Test connection** runs one small students query. The page load does not call PowerSchool. Credentials stay in the server environment; the card and the status routes never accept or return them.
 
@@ -87,7 +87,7 @@ npm test
 
 ## Data
 
-SQLite is created at `data/ptc.sqlite` on first start. `db/schema.sql` runs only when the `events` table is missing. There is no JSON store to import.
+SQLite is created at `data/ptc.sqlite` on first start. `db/schema.sql` runs only when the `events` table is missing. Startup also runs idempotent migrations (`ensureSchoolSchema` and related helpers) so existing databases gain `schools`, `staff.powerschool_school_id`, and service columns `school_id` / `active` / `buffer_minutes` without wiping rows. There is no JSON store to import.
 
 School dates and cutoff times are interpreted in `Asia/Bangkok` unless `APP_TIMEZONE` is set.
 
@@ -101,7 +101,7 @@ The spec does not say whether “open for booking” decides draft versus upcomi
 
 A parent session receives `404 Event not found` for an unpublished conference, the same response as a missing id.
 
-`display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email is refreshed from PowerSchool.
+`display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email and `powerschool_school_id` are refreshed from PowerSchool. Schools are upserted the same way as staff (`SchoolRepository.sync` on `powerschool_school_id`). No school HTTP routes yet.
 
 Guardian lookups are cached for 5 minutes per email. Slot availability is computed on each parent-view request. `room_override` on a staff assignment replaces the PowerSchool room when it is set. Assign remains `{ staff_id }`. IT admins set or clear the override with `PATCH /api/v1/services/{serviceId}/staff/{staffId}` and `{ "room_override": "Gym" }` (`null` or `""` clears it back to the PowerSchool room).
 

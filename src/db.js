@@ -25,7 +25,38 @@ export function openDatabase(dbPath, schemaPath) {
   ensureBookingOverlapIndex(db);
   ensureLandingPageSchema(db);
   ensureCustomFieldSchema(db);
+  ensureSchoolSchema(db);
   return db;
+}
+
+function ensureSchoolSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS schools (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      powerschool_school_id TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  const staffColumns = db.prepare('PRAGMA table_info(staff)').all();
+  if (staffColumns.length > 0
+    && !staffColumns.some((column) => column.name === 'powerschool_school_id')) {
+    db.exec('ALTER TABLE staff ADD COLUMN powerschool_school_id TEXT');
+  }
+
+  const serviceColumns = db.prepare('PRAGMA table_info(services)').all();
+  if (serviceColumns.length === 0) return;
+  if (!serviceColumns.some((column) => column.name === 'school_id')) {
+    db.exec('ALTER TABLE services ADD COLUMN school_id INTEGER REFERENCES schools(id)');
+  }
+  if (!serviceColumns.some((column) => column.name === 'active')) {
+    db.exec('ALTER TABLE services ADD COLUMN active INTEGER NOT NULL DEFAULT 1');
+  }
+  if (!serviceColumns.some((column) => column.name === 'buffer_minutes')) {
+    db.exec('ALTER TABLE services ADD COLUMN buffer_minutes INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 function ensureCustomFieldSchema(db) {

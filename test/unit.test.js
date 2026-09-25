@@ -12,6 +12,7 @@ import { PsapiError } from '../src/errors.js';
 import { chunkSlots } from '../src/slots.js';
 import { verificationPayload } from '../src/mail/mailer.js';
 import { StaffRepository } from '../src/repositories/StaffRepository.js';
+import { SchoolRepository } from '../src/repositories/SchoolRepository.js';
 import { mergeStaff } from '../src/staff-merge.js';
 import {
   computeEventStatus,
@@ -55,6 +56,7 @@ describe('PowerSchool mapping', () => {
       email: 'a@nis.ac.th',
       photo_url: null,
       room: '204',
+      powerschool_school_id: null,
     }]);
 
     const flat = mapTeacherPayload({
@@ -62,6 +64,25 @@ describe('PowerSchool mapping', () => {
     });
     assert.equal(flat[0].display_name, 'Maya Chen');
     assert.equal(flat[0].room, '118');
+  });
+
+  test('captures schoolid from schoolstaff rows', () => {
+    const mapped = mapTeacherPayload({
+      record: [
+        {
+          tables: {
+            schoolstaff: {
+              id: 7,
+              lastfirst: 'Chen, Maya',
+              email_addr: 'maya@nis.ac.th',
+              schoolid: 2,
+              room: '118',
+            },
+          },
+        },
+      ],
+    });
+    assert.equal(mapped[0].powerschool_school_id, '2');
   });
 });
 
@@ -164,6 +185,148 @@ describe('staff sync overrides', () => {
     assert.equal(merged.find((member) => member.powerschool_teacher_id === 'T1').display_name, 'Custom');
     assert.equal(merged.find((member) => member.powerschool_teacher_id === 'T2').synced, false);
     db.close();
+  });
+
+  test('captures and refreshes powerschool_school_id from PowerSchool', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'ptc-staff-school-'));
+    const db = openDatabase(path.join(dir, 'staff.sqlite'), path.join(projectRoot, 'db', 'schema.sql'));
+    const repo = new StaffRepository(db);
+    const created = repo.sync([{
+      powerschool_teacher_id: 'T1',
+      display_name: 'Aroon',
+      email: 'a@nis.ac.th',
+      powerschool_school_id: '1',
+    }]);
+    assert.equal(created.created, 1);
+    assert.equal(repo.findByTeacherId('T1').powerschool_school_id, '1');
+
+    const refreshed = repo.sync([{
+      powerschool_teacher_id: 'T1',
+      display_name: 'Ignored',
+      email: 'a@nis.ac.th',
+      powerschool_school_id: '2',
+    }]);
+    assert.equal(refreshed.updated, 1);
+    assert.equal(repo.findByTeacherId('T1').powerschool_school_id, '2');
+
+    const same = repo.sync([{
+      powerschool_teacher_id: 'T1',
+      display_name: 'Ignored',
+      email: 'a@nis.ac.th',
+      powerschool_school_id: '2',
+    }]);
+    assert.equal(same.unchanged, 1);
+    db.close();
+  });
+});
+
+describe('school sync', () => {
+  test('creates, updates, and leaves schools unchanged', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'ptc-schools-'));
+    const db = openDatabase(path.join(dir, 'schools.sqlite'), path.join(projectRoot, 'db', 'schema.sql'));
+    const repo = new SchoolRepository(db);
+
+    const first = repo.sync([
+      { powerschool_school_id: '1', name: 'Elementary' },
+      { powerschool_school_id: '2', name: 'Middle' },
+    ]);
+    assert.deepEqual(first, { created: 2, updated: 0, unchanged: 0 });
+    assert.equal(repo.findByPowerschoolId('1').name, 'Elementary');
+
+    const second = repo.sync([
+      { powerschool_school_id: '1', name: 'Elementary School' },
+      { powerschool_school_id: '2', name: 'Middle' },
+      { powerschool_school_id: '3', name: 'High' },
+    ]);
+    assert.deepEqual(second, { created: 1, updated: 1, unchanged: 1 });
+    assert.equal(repo.findByPowerschoolId('1').name, 'Elementary School');
+    assert.equal(repo.list().length, 3);
+    assert.ok(repo.findById(repo.findByPowerschoolId('3').id));
+    db.close();
+  });
+});
+
+describe('school schema migration', () => {
+  test('upgrades a pre-change database without corrupting rows or erroring on re-run', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'ptc-school-mig-'));
+    const dbPath = path.join(dir, 'legacy.sqlite');
+    const legacy = new Database(dbPath);
+    legacy.exec(`
+      CREATE TABLE events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        event_date TEXT NOT NULL,
+        cutoff_at TEXT,
+        is_open_for_booking INTEGER NOT NULL DEFAULT 0,
+        summary_sent_at TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE services (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        slot_duration_minutes INTEGER NOT NULL CHECK (slot_duration_minutes > 0),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE TABLE staff (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        powerschool_teacher_id TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        photo_url TEXT,
+        active INTEGER NOT NULL DEFAULT 1
+      );
+      CREATE TABLE bookings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER NOT NULL,
+        service_id INTEGER NOT NULL,
+        staff_id INTEGER NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        booking_batch_id TEXT NOT NULL,
+        student_powerschool_id TEXT NOT NULL,
+        student_name TEXT NOT NULL,
+        parent_email TEXT NOT NULL,
+        parent_relationship TEXT NOT NULL DEFAULT 'mother',
+        status TEXT NOT NULL DEFAULT 'confirmed',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO events (name, event_date, created_by)
+        VALUES ('Keep Event', '2026-10-14', 'it.admin@nis.ac.th');
+      INSERT INTO services (event_id, name, slot_duration_minutes)
+        VALUES (1, 'Homeroom', 15);
+      INSERT INTO staff (powerschool_teacher_id, display_name, email)
+        VALUES ('T1', 'Aroon', 'a@nis.ac.th');
+    `);
+    legacy.close();
+
+    const schemaPath = path.join(projectRoot, 'db', 'schema.sql');
+    const first = openDatabase(dbPath, schemaPath);
+    const staffCols = first.prepare('PRAGMA table_info(staff)').all().map((c) => c.name);
+    const serviceCols = first.prepare('PRAGMA table_info(services)').all().map((c) => c.name);
+    assert.ok(staffCols.includes('powerschool_school_id'));
+    assert.ok(serviceCols.includes('school_id'));
+    assert.ok(serviceCols.includes('active'));
+    assert.ok(serviceCols.includes('buffer_minutes'));
+    assert.ok(first.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schools'",
+    ).get());
+    assert.equal(first.prepare('SELECT name FROM events').get().name, 'Keep Event');
+    assert.equal(first.prepare('SELECT name FROM services').get().name, 'Homeroom');
+    assert.equal(first.prepare('SELECT display_name FROM staff').get().display_name, 'Aroon');
+    assert.equal(first.prepare('SELECT active FROM services').get().active, 1);
+    assert.equal(first.prepare('SELECT buffer_minutes FROM services').get().buffer_minutes, 0);
+    first.close();
+
+    const second = openDatabase(dbPath, schemaPath);
+    assert.equal(second.prepare('SELECT COUNT(*) AS n FROM events').get().n, 1);
+    assert.equal(second.prepare('SELECT COUNT(*) AS n FROM staff').get().n, 1);
+    assert.equal(second.prepare('SELECT COUNT(*) AS n FROM services').get().n, 1);
+    second.close();
   });
 });
 

@@ -6,6 +6,7 @@ function mapStaff(row) {
     display_name: row.display_name,
     email: row.email,
     photo_url: row.photo_url,
+    powerschool_school_id: row.powerschool_school_id ?? null,
     active: row.active === 1,
   };
 }
@@ -17,6 +18,7 @@ function mapAssignment(row) {
     display_name: row.display_name,
     email: row.email,
     photo_url: row.photo_url,
+    powerschool_school_id: row.powerschool_school_id ?? null,
     active: row.active === 1,
     service_id: row.service_id,
     room_override: row.room_override,
@@ -30,12 +32,15 @@ export class StaffRepository {
     this.findStmt = db.prepare('SELECT * FROM staff WHERE id = ?');
     this.findByTeacherStmt = db.prepare('SELECT * FROM staff WHERE powerschool_teacher_id = ?');
     this.insertStmt = db.prepare(`
-      INSERT INTO staff (powerschool_teacher_id, display_name, email, photo_url, active)
-      VALUES (@powerschool_teacher_id, @display_name, @email, @photo_url, 1)
+      INSERT INTO staff (powerschool_teacher_id, display_name, email, photo_url, powerschool_school_id, active)
+      VALUES (@powerschool_teacher_id, @display_name, @email, @photo_url, @powerschool_school_id, 1)
     `);
-    this.updateEmailStmt = db.prepare('UPDATE staff SET email = ? WHERE id = ?');
+    this.updateFromPowerschoolStmt = db.prepare(`
+      UPDATE staff SET email = ?, powerschool_school_id = ? WHERE id = ?
+    `);
     this.assignmentsForServicesStmt = db.prepare(`
-      SELECT s.id, s.powerschool_teacher_id, s.display_name, s.email, s.photo_url, s.active,
+      SELECT s.id, s.powerschool_teacher_id, s.display_name, s.email, s.photo_url,
+             s.powerschool_school_id, s.active,
              ss.service_id, ss.room_override
       FROM staff_services ss
       JOIN staff s ON s.id = ss.staff_id
@@ -57,6 +62,7 @@ export class StaffRepository {
     `);
     this.assignmentLookupStmt = db.prepare(`
       SELECT s.id AS staff_id, s.powerschool_teacher_id, s.display_name, s.photo_url,
+             s.powerschool_school_id,
              ss.service_id, ss.room_override, sv.slot_duration_minutes, sv.event_id
       FROM staff_services ss
       JOIN staff s ON s.id = ss.staff_id
@@ -65,6 +71,7 @@ export class StaffRepository {
     `);
     this.scheduleStmt = db.prepare(`
       SELECT s.id AS staff_id, s.powerschool_teacher_id, s.display_name, s.photo_url,
+             s.powerschool_school_id,
              ss.service_id, ss.room_override, sv.slot_duration_minutes
       FROM staff_services ss
       JOIN staff s ON s.id = ss.staff_id
@@ -111,7 +118,8 @@ export class StaffRepository {
    * Upsert teachers from PowerSchool.
    * display_name and photo_url are local overrides and are not overwritten.
    * active is an admin control and is not overwritten.
-   * email is refreshed from PowerSchool because it is not an admin override.
+   * email and powerschool_school_id are refreshed from PowerSchool because
+   * they are not admin overrides.
    */
   sync(teachers) {
     return this.db.transaction((rows) => {
@@ -119,6 +127,10 @@ export class StaffRepository {
       let updated = 0;
       let unchanged = 0;
       for (const teacher of rows) {
+        const schoolId = teacher.powerschool_school_id == null
+          || String(teacher.powerschool_school_id).trim() === ''
+          ? null
+          : String(teacher.powerschool_school_id);
         const existing = this.findByTeacherStmt.get(teacher.powerschool_teacher_id);
         if (!existing) {
           this.insertStmt.run({
@@ -126,10 +138,14 @@ export class StaffRepository {
             display_name: teacher.display_name,
             email: teacher.email,
             photo_url: teacher.photo_url ?? null,
+            powerschool_school_id: schoolId,
           });
           created += 1;
-        } else if (existing.email !== teacher.email) {
-          this.updateEmailStmt.run(teacher.email, existing.id);
+        } else if (
+          existing.email !== teacher.email
+          || (existing.powerschool_school_id ?? null) !== schoolId
+        ) {
+          this.updateFromPowerschoolStmt.run(teacher.email, schoolId, existing.id);
           updated += 1;
         } else {
           unchanged += 1;
@@ -177,6 +193,7 @@ export class StaffRepository {
       powerschool_teacher_id: row.powerschool_teacher_id,
       display_name: row.display_name,
       photo_url: row.photo_url,
+      powerschool_school_id: row.powerschool_school_id ?? null,
       service_id: row.service_id,
       room_override: row.room_override,
       slot_duration_minutes: row.slot_duration_minutes,
@@ -190,6 +207,7 @@ export class StaffRepository {
       powerschool_teacher_id: row.powerschool_teacher_id,
       display_name: row.display_name,
       photo_url: row.photo_url,
+      powerschool_school_id: row.powerschool_school_id ?? null,
       service_id: row.service_id,
       room_override: row.room_override,
       slot_duration_minutes: row.slot_duration_minutes,

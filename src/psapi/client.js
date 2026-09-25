@@ -1,9 +1,24 @@
 import { PsapiError } from '../errors.js';
-import { MOCK_GUARDIANS, MOCK_TEACHERS } from './mock-data.js';
+import { MOCK_GUARDIANS, MOCK_SCHOOLS, MOCK_TEACHERS } from './mock-data.js';
 
 function text(value) {
   if (value == null) return '';
   return String(value).trim();
+}
+
+function schoolFromRecord(record) {
+  const row = record?.tables?.schools
+    || record?.schools
+    || record;
+  if (!row || typeof row !== 'object') return null;
+  const id = row.powerschool_school_id ?? row.school_number ?? row.schoolid
+    ?? row.school_id ?? row.id ?? row.dcid;
+  const name = text(row.name || row.school_name || row.schoolname);
+  if (id == null || text(id) === '' || !name) return null;
+  return {
+    powerschool_school_id: String(id),
+    name,
+  };
 }
 
 function teacherFromRecord(record) {
@@ -20,12 +35,16 @@ function teacherFromRecord(record) {
   const email = text(row.email_addr || row.email || row.emailaddress).toLowerCase();
   const room = text(row.room || row.homeroom) || null;
   const photo = text(row.photo_url) || null;
+  // schoolid is present on schoolstaff rows; teachers table may use school_id.
+  const schoolRaw = row.schoolid ?? row.school_id ?? row.powerschool_school_id;
+  const schoolId = schoolRaw == null || text(schoolRaw) === '' ? null : String(schoolRaw);
   return {
     powerschool_teacher_id: String(id),
     display_name: displayName,
     email,
     photo_url: photo,
     room,
+    powerschool_school_id: schoolId,
   };
 }
 
@@ -104,6 +123,25 @@ export function mapTeacherPayload(payload) {
     teachers.push(teacher);
   }
   return teachers;
+}
+
+export function mapSchoolPayload(payload) {
+  const records = Array.isArray(payload)
+    ? payload
+    : payload?.record
+      || payload?.records
+      || payload?.schools
+      || [];
+  if (!Array.isArray(records)) return [];
+  const schools = [];
+  const seen = new Set();
+  for (const record of records) {
+    const school = schoolFromRecord(record);
+    if (!school || seen.has(school.powerschool_school_id)) continue;
+    seen.add(school.powerschool_school_id);
+    schools.push(school);
+  }
+  return schools;
 }
 
 function publicPsapiMessage(error) {
@@ -192,6 +230,9 @@ export function createPsapiClient({
   clientId = '',
   clientSecret = '',
   teachersPath = '/ws/schema/table/teachers',
+  // Exact schools endpoint should be re-verified with real PowerSchool credentials;
+  // /ws/schema/table/schools is the provisional mirror of the teachers path.
+  schoolsPath = '/ws/schema/table/schools',
   studentsPath = '/ws/schema/table/students',
   fetchImpl = fetch,
 } = {}) {
@@ -245,6 +286,33 @@ export function createPsapiClient({
       if (batch.length < 100) break;
     }
     return teachers;
+  }
+
+  async function listSchoolsFromPowerSchool() {
+    // Exact PS endpoint / projection should be re-verified with real credentials.
+    const token = await fetchAccessToken({ baseUrl, clientId, clientSecret, fetchImpl });
+    const schools = [];
+    const seen = new Set();
+    for (let page = 1; page <= 50; page += 1) {
+      const url = new URL(schoolsPath, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
+      url.searchParams.set('pagesize', '100');
+      url.searchParams.set('page', String(page));
+      const response = await fetchImpl(url, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new PsapiError('PowerSchool school request failed');
+      const batch = mapSchoolPayload(await response.json());
+      if (batch.length === 0) break;
+      if (seen.has(batch[0].powerschool_school_id)) break;
+      for (const school of batch) {
+        if (seen.has(school.powerschool_school_id)) continue;
+        seen.add(school.powerschool_school_id);
+        schools.push(school);
+      }
+      if (batch.length < 100) break;
+    }
+    return schools;
   }
 
   function schemaUrl(path, params) {
@@ -427,6 +495,16 @@ export function createPsapiClient({
       }
       const teachers = await remember(listFromPowerSchool);
       return { source: 'powerschool', teachers };
+    },
+    async listSchools() {
+      if (!configured) {
+        return {
+          source: 'mock',
+          schools: MOCK_SCHOOLS.map((school) => ({ ...school })),
+        };
+      }
+      const schools = await remember(listSchoolsFromPowerSchool);
+      return { source: 'powerschool', schools };
     },
     async studentsForGuardian(email) {
       const key = text(email).toLowerCase();

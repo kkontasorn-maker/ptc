@@ -155,6 +155,7 @@ describe('admin API', { concurrency: false }, () => {
       'events',
       'landing_page_blocks',
       'parent_contact_preferences',
+      'schools',
       'services',
       'staff',
       'staff_services',

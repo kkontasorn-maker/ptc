@@ -9,6 +9,7 @@ import { createPsapiClient } from './psapi/client.js';
 import { EventRepository } from './repositories/EventRepository.js';
 import { ServiceRepository } from './repositories/ServiceRepository.js';
 import { StaffRepository } from './repositories/StaffRepository.js';
+import { SchoolRepository } from './repositories/SchoolRepository.js';
 import { AvailabilityRepository } from './repositories/AvailabilityRepository.js';
 import { BookingRepository } from './repositories/BookingRepository.js';
 import { VerificationRepository } from './repositories/VerificationRepository.js';
@@ -78,6 +79,7 @@ export function createApp(config) {
     events: new EventRepository(db),
     services: new ServiceRepository(db),
     staff: new StaffRepository(db),
+    schools: new SchoolRepository(db),
     availability: new AvailabilityRepository(db),
     bookings: new BookingRepository(db),
     verifications: new VerificationRepository(db),

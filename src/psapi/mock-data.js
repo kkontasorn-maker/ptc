@@ -25,6 +25,12 @@ export const MOCK_GUARDIANS = {
   'father@example.com': srisukChildren,
 };
 
+export const MOCK_SCHOOLS = [
+  { powerschool_school_id: '1', name: 'Elementary' },
+  { powerschool_school_id: '2', name: 'Middle' },
+  { powerschool_school_id: '3', name: 'High' },
+];
+
 export const MOCK_TEACHERS = [
   {
     powerschool_teacher_id: 'T1001',
@@ -32,6 +38,7 @@ export const MOCK_TEACHERS = [
     email: 'aroon.srisuk@nis.ac.th',
     photo_url: null,
     room: '204',
+    powerschool_school_id: '1',
   },
   {
     powerschool_teacher_id: 'T1002',
@@ -39,6 +46,7 @@ export const MOCK_TEACHERS = [
     email: 'maya.chen@nis.ac.th',
     photo_url: null,
     room: '118',
+    powerschool_school_id: '1',
   },
   {
     powerschool_teacher_id: 'T1003',
@@ -46,6 +54,7 @@ export const MOCK_TEACHERS = [
     email: 'daniel.okonkwo@nis.ac.th',
     photo_url: null,
     room: '310',
+    powerschool_school_id: '3',
   },
   {
     powerschool_teacher_id: 'T1004',
@@ -53,6 +62,7 @@ export const MOCK_TEACHERS = [
     email: 'priya.nair@nis.ac.th',
     photo_url: null,
     room: '112',
+    powerschool_school_id: '1',
   },
   {
     powerschool_teacher_id: 'T1005',
@@ -60,6 +70,7 @@ export const MOCK_TEACHERS = [
     email: 'luca.moretti@nis.ac.th',
     photo_url: null,
     room: 'Gym',
+    powerschool_school_id: '2',
   },
   {
     powerschool_teacher_id: 'T1006',
@@ -67,6 +78,7 @@ export const MOCK_TEACHERS = [
     email: 'hanae.fujita@nis.ac.th',
     photo_url: null,
     room: '221',
+    powerschool_school_id: '2',
   },
   {
     powerschool_teacher_id: 'T1007',
@@ -74,6 +86,7 @@ export const MOCK_TEACHERS = [
     email: 'samuel.brooks@nis.ac.th',
     photo_url: null,
     room: '205',
+    powerschool_school_id: '3',
   },
   {
     powerschool_teacher_id: 'T1008',
@@ -81,6 +94,7 @@ export const MOCK_TEACHERS = [
     email: 'chanya.wattana@nis.ac.th',
     photo_url: null,
     room: '109',
+    powerschool_school_id: '1',
   },
 ];
 
