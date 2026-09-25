@@ -2753,31 +2753,56 @@ function renderMarkdownLite(text) {
   return nodes;
 }
 
+function LandingParentIcon() {
+  return html`<svg className="landing-tile-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="9" cy="8" r="2.6" fill="none" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M4.4 18.2c.7-2.7 2.5-4.1 4.6-4.1s3.9 1.4 4.6 4.1" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    <circle cx="16.4" cy="9.2" r="2.1" fill="none" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M15.2 14.1c1.7-.2 3.1.7 3.8 2.8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>`;
+}
+
+function LandingStaffIcon() {
+  return html`<svg className="landing-tile-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="8" r="2.7" fill="none" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M6.2 18.3c.9-3 2.9-4.5 5.8-4.5s4.9 1.5 5.8 4.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    <path d="M16.8 6.2 18.6 8l-1.8 1.8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>`;
+}
+
 function LandingHeaderBlock({ content }) {
   const logoUrl = content?.logo_url;
-  return html`<section className="landing-block landing-header">
+  return html`<section className="landing-block landing-hero">
     ${logoUrl ? html`<img className="landing-logo" src=${logoUrl} alt="" />` : null}
-    <h1>${content?.school_name || ''}</h1>
-    <p className="lede">${content?.welcome_text || ''}</p>
+    <h1 className="landing-hero-title">${content?.school_name || ''}</h1>
+    <p className="landing-hero-sub">${content?.welcome_text || ''}</p>
+    <div className="landing-accent-divider" aria-hidden="true">
+      <span className="landing-accent-bar landing-accent-bar--primary"></span>
+      <span className="landing-accent-bar landing-accent-bar--secondary"></span>
+    </div>
   </section>`;
 }
 
 function LandingLoginTilesBlock({ content }) {
   return html`<section className="landing-block landing-tiles" aria-label="Sign in options">
-    <a className="card login-tile" href="#/verify">
-      <h2>${content?.parent_label || 'Parent / Student'}</h2>
-      <p>${content?.parent_description || ''}</p>
+    <a className="landing-tile landing-tile--parent" href="#/verify">
+      <span className="landing-tile-badge" aria-hidden="true"><${LandingParentIcon} /></span>
+      <h2 className="landing-tile-title">${content?.parent_label || 'Parent / Student'}</h2>
+      <p className="landing-tile-body">${content?.parent_description || ''}</p>
+      <span className="landing-tile-cta">Continue <span className="landing-tile-cta-arrow" aria-hidden="true">→</span></span>
     </a>
-    <a className="card login-tile" href="#/sign-in">
-      <h2>${content?.teacher_label || 'Teacher / Staff'}</h2>
-      <p>${content?.teacher_description || ''}</p>
+    <a className="landing-tile landing-tile--staff" href="#/sign-in">
+      <span className="landing-tile-badge" aria-hidden="true"><${LandingStaffIcon} /></span>
+      <h2 className="landing-tile-title">${content?.teacher_label || 'Teacher / Staff'}</h2>
+      <p className="landing-tile-body">${content?.teacher_description || ''}</p>
+      <span className="landing-tile-cta">Continue <span className="landing-tile-cta-arrow" aria-hidden="true">→</span></span>
     </a>
   </section>`;
 }
 
 function LandingAnnouncementBlock({ content }) {
   const tone = content?.tone === 'warning' ? 'warning' : 'info';
-  return html`<section className=${cx('landing-block', 'announcement', tone)} role="status">
+  return html`<section className=${cx('landing-block', 'landing-announcement', tone)} role="status">
     <p>${content?.message || ''}</p>
   </section>`;
 }
@@ -2813,18 +2838,24 @@ function PublicLandingScreen() {
     return () => { live = false; };
   }, []);
 
-  return html`<div>
-    <header className="app-header"><${Logo} href="#/" /></header>
-    <main className="main landing">
-      ${state.loading ? html`<p className="muted">Loading…</p>` : null}
-      ${state.error ? html`<div className="note">${state.error.message}</div>` : null}
+  return html`<div className="landing-page">
+    <header className="landing-topbar">
+      <${Logo} href="#/" />
+      <p className="landing-topbar-tagline">Parent-Teacher Conferences</p>
+    </header>
+    <main className="landing-main">
+      ${state.loading ? html`<p className="landing-status">Loading…</p>` : null}
+      ${state.error ? html`<div className="landing-note">${state.error.message}</div>` : null}
       ${!state.loading && !state.error && state.blocks.length === 0
-        ? html`<div className="note">No landing page content is published yet.</div>`
+        ? html`<div className="landing-note">No landing page content is published yet.</div>`
         : null}
       <div className="landing-stack">
         ${state.blocks.map((block) => html`<${LandingBlockView} block=${block} key=${block.id} />`)}
       </div>
     </main>
+    <footer className="landing-footer">
+      <p>Nakornpayap International School</p>
+    </footer>
   </div>`;
 }
 
