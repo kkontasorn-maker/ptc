@@ -105,7 +105,13 @@ export function createStaffRoutes({ repos, psapi, mail, timeZone }) {
       const blocks = repos.availability.listBookableForStaffEvent(eventId, staffId);
       const bookings = repos.bookings.listConfirmedForEvent(eventId)
         .filter((booking) => booking.staff_id === staffId && booking.service_id === serviceId);
-      const slots = chunkSlots(blocks, service.slot_duration_minutes, bookings, timeZone);
+      const slots = chunkSlots(
+        blocks,
+        service.slot_duration_minutes,
+        bookings,
+        timeZone,
+        service.buffer_minutes ?? 0,
+      );
       res.json({
         staff_id: staffId,
         service_id: serviceId,

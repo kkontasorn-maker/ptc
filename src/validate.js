@@ -124,19 +124,65 @@ export function validateEventPatch(body, timeZone) {
   return patch;
 }
 
+function readSchoolId(value, details, { required = false } = {}) {
+  if (value === null || value === undefined) {
+    if (required) {
+      details.push({ field: 'school_id', message: 'school_id must be a positive integer or null' });
+    }
+    return null;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || !Number.isSafeInteger(value)) {
+    details.push({ field: 'school_id', message: 'school_id must be a positive integer or null' });
+    return undefined;
+  }
+  return value;
+}
+
+function readBufferMinutes(value, details, { required = false } = {}) {
+  if (value === undefined || value === null) {
+    if (required) {
+      details.push({
+        field: 'buffer_minutes',
+        message: 'Buffer minutes must be a whole number of minutes from 0 upward',
+      });
+      return undefined;
+    }
+    return 0;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || !Number.isSafeInteger(value)) {
+    details.push({
+      field: 'buffer_minutes',
+      message: 'Buffer minutes must be a whole number of minutes from 0 upward',
+    });
+    return undefined;
+  }
+  return value;
+}
+
 export function validateServiceCreate(body) {
   const data = requireObject(body);
-  assertAllowed(data, ['name', 'slot_duration_minutes']);
+  assertAllowed(data, ['name', 'slot_duration_minutes', 'school_id', 'buffer_minutes']);
   const details = [];
   const name = readName(data.name, details);
   const duration = readDuration(data.slot_duration_minutes, details);
+  const schoolId = Object.prototype.hasOwnProperty.call(data, 'school_id')
+    ? readSchoolId(data.school_id, details)
+    : null;
+  const bufferMinutes = Object.prototype.hasOwnProperty.call(data, 'buffer_minutes')
+    ? readBufferMinutes(data.buffer_minutes, details, { required: true })
+    : 0;
   if (details.length) fail(details);
-  return { name, slot_duration_minutes: duration };
+  return {
+    name,
+    slot_duration_minutes: duration,
+    school_id: schoolId,
+    buffer_minutes: bufferMinutes,
+  };
 }
 
 export function validateServicePatch(body) {
   const data = requireObject(body);
-  assertAllowed(data, ['name', 'slot_duration_minutes']);
+  assertAllowed(data, ['name', 'slot_duration_minutes', 'school_id', 'buffer_minutes', 'active']);
   const details = [];
   const patch = {};
   if (Object.prototype.hasOwnProperty.call(data, 'name')) {
@@ -146,6 +192,21 @@ export function validateServicePatch(body) {
   if (Object.prototype.hasOwnProperty.call(data, 'slot_duration_minutes')) {
     const duration = readDuration(data.slot_duration_minutes, details);
     if (duration) patch.slot_duration_minutes = duration;
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'school_id')) {
+    const schoolId = readSchoolId(data.school_id, details);
+    if (schoolId !== undefined) patch.school_id = schoolId;
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'buffer_minutes')) {
+    const bufferMinutes = readBufferMinutes(data.buffer_minutes, details, { required: true });
+    if (bufferMinutes !== undefined) patch.buffer_minutes = bufferMinutes;
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'active')) {
+    if (typeof data.active !== 'boolean') {
+      details.push({ field: 'active', message: 'Active must be true or false' });
+    } else {
+      patch.active = data.active ? 1 : 0;
+    }
   }
   if (!details.length && Object.keys(patch).length === 0) {
     details.push({ field: 'body', message: 'No fields to update' });

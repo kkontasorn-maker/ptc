@@ -803,4 +803,49 @@ describe('booking submission', { concurrency: false }, () => {
     // Mock guardian data: Aroon (T1001) room is 204 for S1001.
     assert.equal(aroonBooking.room, '204');
   });
+
+  test('parent-view hides inactive services while admin list still shows them', async () => {
+    const extra = await api(`/api/v1/events/${eventId}/services`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { name: 'Inactive track', slot_duration_minutes: 15 },
+    });
+    assert.equal(extra.status, 201, JSON.stringify(extra.json));
+    const inactiveId = extra.json.service.id;
+    const assigned = await api(`/api/v1/services/${inactiveId}/staff`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { staff_id: aroonId },
+    });
+    assert.equal(assigned.status, 201);
+
+    const before = await api(`/api/v1/events/${eventId}/parent-view?email=parent@nis.ac.th`, {
+      cookie: parentCookie,
+    });
+    assert.equal(before.status, 200);
+    const beforeIds = before.json.children[0].teachers.map((row) => row.service_id);
+    assert.equal(beforeIds.includes(inactiveId), true);
+
+    const deactivated = await api(`/api/v1/services/${inactiveId}`, {
+      method: 'PATCH',
+      cookie: adminCookie,
+      body: { active: false },
+    });
+    assert.equal(deactivated.status, 200);
+    assert.equal(deactivated.json.service.active, false);
+
+    const adminList = await api(`/api/v1/events/${eventId}/services`, { cookie: adminCookie });
+    assert.equal(adminList.status, 200);
+    const listed = adminList.json.services.find((service) => service.id === inactiveId);
+    assert.ok(listed);
+    assert.equal(listed.active, false);
+
+    const after = await api(`/api/v1/events/${eventId}/parent-view?email=parent@nis.ac.th`, {
+      cookie: parentCookie,
+    });
+    assert.equal(after.status, 200);
+    const afterIds = after.json.children.flatMap((child) => child.teachers.map((row) => row.service_id));
+    assert.equal(afterIds.includes(inactiveId), false);
+    assert.equal(afterIds.includes(serviceId), true);
+  });
 });

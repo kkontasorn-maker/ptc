@@ -280,7 +280,7 @@ export class BookingRepository {
     return this.runImmediate(run);
   }
 
-  move(booking, startTime, endTime, { timeZone, availability, slotDuration }) {
+  move(booking, startTime, endTime, { timeZone, availability, slotDuration, bufferMinutes = 0 }) {
     const run = this.db.transaction(() => {
       const current = this.findById(booking.id);
       if (!current || current.status !== 'confirmed') return null;
@@ -290,6 +290,7 @@ export class BookingRepository {
         start_time: startTime,
         end_time: endTime,
         slot_duration_minutes: slotDuration,
+        buffer_minutes: bufferMinutes,
       }, { timeZone, availability, excludeId: current.id });
       this.moveStmt.run(startTime, endTime, current.id);
       return this.findById(current.id);
@@ -317,7 +318,14 @@ export class BookingRepository {
 
   assertSlotOpen(item, { timeZone, availability, excludeId }) {
     const blocks = availability.listBookableForStaffEvent(item.event_id, item.staff_id);
-    if (!isScheduledSlot(blocks, item.slot_duration_minutes, item.start_time, item.end_time, timeZone)) {
+    if (!isScheduledSlot(
+      blocks,
+      item.slot_duration_minutes,
+      item.start_time,
+      item.end_time,
+      timeZone,
+      item.buffer_minutes ?? 0,
+    )) {
       throw new ValidationError('Choose an open time from the schedule', [{
         field: 'picks',
         message: 'Choose an open time from the schedule',

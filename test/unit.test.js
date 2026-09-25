@@ -14,6 +14,7 @@ import { verificationPayload } from '../src/mail/mailer.js';
 import { StaffRepository } from '../src/repositories/StaffRepository.js';
 import { SchoolRepository } from '../src/repositories/SchoolRepository.js';
 import { mergeStaff } from '../src/staff-merge.js';
+import { mergeSchools } from '../src/school-merge.js';
 import {
   computeEventStatus,
   formatCutoffMessage,
@@ -568,5 +569,50 @@ describe('guardian mapping and slots', () => {
     ]);
     assert.equal(verificationPayload({ exposeDevCode: false, code: '123456' }).dev_code, undefined);
     assert.equal(verificationPayload({ exposeDevCode: true, code: '123456' }).dev_code, '123456');
+  });
+
+  test('buffer_minutes advances the cursor while slots stay duration long', () => {
+    const blocks = [
+      { block_type: 'bookable', start_time: '2026-10-23T08:00:00+07:00', end_time: '2026-10-23T08:45:00+07:00' },
+    ];
+    // 15-min duration + 10-min buffer on a block long enough for 3 → exactly 2 slots with a 10-min gap.
+    const withBuffer = chunkSlots(blocks, 15, [], 'Asia/Bangkok', 10);
+    assert.deepEqual(withBuffer, [
+      { start_time: '2026-10-23T08:00:00+07:00', end_time: '2026-10-23T08:15:00+07:00', available: true },
+      { start_time: '2026-10-23T08:25:00+07:00', end_time: '2026-10-23T08:40:00+07:00', available: true },
+    ]);
+    assert.equal(withBuffer.length, 2);
+
+    const zeroExplicit = chunkSlots(blocks, 15, [], 'Asia/Bangkok', 0);
+    const zeroDefault = chunkSlots(blocks, 15, [], 'Asia/Bangkok');
+    assert.deepEqual(zeroExplicit, zeroDefault);
+    assert.deepEqual(zeroDefault, [
+      { start_time: '2026-10-23T08:00:00+07:00', end_time: '2026-10-23T08:15:00+07:00', available: true },
+      { start_time: '2026-10-23T08:15:00+07:00', end_time: '2026-10-23T08:30:00+07:00', available: true },
+      { start_time: '2026-10-23T08:30:00+07:00', end_time: '2026-10-23T08:45:00+07:00', available: true },
+    ]);
+  });
+
+  test('mergeSchools joins PowerSchool and local by powerschool_school_id', () => {
+    const merged = mergeSchools(
+      [
+        { powerschool_school_id: '1', name: 'Elementary PS' },
+        { powerschool_school_id: '2', name: 'Middle' },
+      ],
+      [
+        { id: 10, powerschool_school_id: '1', name: 'Elementary' },
+        { id: 11, powerschool_school_id: '9', name: 'Campus Only' },
+      ],
+    );
+    assert.deepEqual(merged.find((row) => row.powerschool_school_id === '1'), {
+      id: 10,
+      powerschool_school_id: '1',
+      name: 'Elementary',
+      synced: true,
+      in_powerschool: true,
+    });
+    assert.equal(merged.find((row) => row.powerschool_school_id === '2').synced, false);
+    assert.equal(merged.find((row) => row.powerschool_school_id === '2').id, null);
+    assert.equal(merged.find((row) => row.powerschool_school_id === '9').in_powerschool, false);
   });
 });

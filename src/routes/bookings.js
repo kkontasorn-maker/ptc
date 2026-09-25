@@ -238,6 +238,7 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
         parent_relationship: input.parent_relationship,
         parent_relationship_other: input.parent_relationship_other,
         slot_duration_minutes: assignment.slot_duration_minutes,
+        buffer_minutes: assignment.buffer_minutes ?? 0,
         display_name: assignment.display_name,
         room: roomFor(assignment, psTeacher.room),
       };
@@ -285,6 +286,7 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
       timeZone,
       availability: repos.availability,
       slotDuration: assignment.slot_duration_minutes,
+      bufferMinutes: assignment.buffer_minutes ?? 0,
     });
     if (!moved) throw new NotFoundError('Booking not found');
     const room = await roomForBooking(psapi, moved, assignment);

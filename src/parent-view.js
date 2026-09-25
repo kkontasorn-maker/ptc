@@ -74,6 +74,7 @@ export function buildParentView({
           assignment.slot_duration_minutes,
           staffBookings,
           timeZone,
+          assignment.buffer_minutes ?? 0,
         ),
         already_booked: alreadyBooked(bookings, {
           staffId: assignment.staff_id,

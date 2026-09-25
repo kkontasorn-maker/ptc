@@ -33,6 +33,7 @@ export function presentStaffMember(member) {
     display_name: member.display_name,
     email: member.email,
     photo_url: safePhotoUrl(member.photo_url),
+    powerschool_school_id: member.powerschool_school_id ?? null,
     active: member.active,
     room_override: Object.prototype.hasOwnProperty.call(member, 'room_override')
       ? member.room_override
@@ -46,6 +47,9 @@ export function presentService(service, staff = []) {
     event_id: service.event_id,
     name: service.name,
     slot_duration_minutes: service.slot_duration_minutes,
+    school_id: service.school_id ?? null,
+    active: Boolean(service.active),
+    buffer_minutes: service.buffer_minutes ?? 0,
     created_at: service.created_at,
     updated_at: service.updated_at,
     staff: staff.map((member) => {
@@ -63,6 +67,7 @@ export function presentMergedStaff(member) {
     display_name: member.display_name,
     email: member.email,
     photo_url: safePhotoUrl(member.photo_url),
+    powerschool_school_id: member.powerschool_school_id ?? null,
     active: Boolean(member.active),
     synced: Boolean(member.synced),
     in_powerschool: Boolean(member.in_powerschool),

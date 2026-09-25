@@ -5,6 +5,9 @@ function mapService(row) {
     event_id: row.event_id,
     name: row.name,
     slot_duration_minutes: row.slot_duration_minutes,
+    school_id: row.school_id ?? null,
+    active: row.active === 1 || row.active === true,
+    buffer_minutes: row.buffer_minutes ?? 0,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -14,8 +17,8 @@ export class ServiceRepository {
   constructor(db) {
     this.db = db;
     this.insertStmt = db.prepare(`
-      INSERT INTO services (event_id, name, slot_duration_minutes)
-      VALUES (@event_id, @name, @slot_duration_minutes)
+      INSERT INTO services (event_id, name, slot_duration_minutes, school_id, buffer_minutes)
+      VALUES (@event_id, @name, @slot_duration_minutes, @school_id, @buffer_minutes)
     `);
     this.findStmt = db.prepare('SELECT * FROM services WHERE id = ?');
     this.listStmt = db.prepare('SELECT * FROM services WHERE event_id = ? ORDER BY id ASC');
@@ -46,13 +49,19 @@ export class ServiceRepository {
     return mapService(this.findStmt.get(id));
   }
 
-  create({ event_id, name, slot_duration_minutes }) {
-    const info = this.insertStmt.run({ event_id, name, slot_duration_minutes });
+  create({ event_id, name, slot_duration_minutes, school_id = null, buffer_minutes = 0 }) {
+    const info = this.insertStmt.run({
+      event_id,
+      name,
+      slot_duration_minutes,
+      school_id: school_id ?? null,
+      buffer_minutes: buffer_minutes ?? 0,
+    });
     return this.findById(Number(info.lastInsertRowid));
   }
 
   update(id, fields) {
-    const allowed = ['name', 'slot_duration_minutes'];
+    const allowed = ['name', 'slot_duration_minutes', 'school_id', 'active', 'buffer_minutes'];
     const sets = [];
     const params = [];
     for (const key of allowed) {

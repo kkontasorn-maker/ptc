@@ -101,7 +101,7 @@ The spec does not say whether “open for booking” decides draft versus upcomi
 
 A parent session receives `404 Event not found` for an unpublished conference, the same response as a missing id.
 
-`display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email and `powerschool_school_id` are refreshed from PowerSchool. Schools are upserted the same way as staff (`SchoolRepository.sync` on `powerschool_school_id`). No school HTTP routes yet.
+`display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email and `powerschool_school_id` are refreshed from PowerSchool. Schools are listed and synced like staff: `GET /api/v1/schools` (it_admin / front_office / teacher) and `POST /api/v1/schools/sync` (it_admin). Services accept optional `school_id`, `buffer_minutes` (default 0), and `active`; parent-view schedules only active services. Slot grids advance by duration + buffer between starts.
 
 Guardian lookups are cached for 5 minutes per email. Slot availability is computed on each parent-view request. `room_override` on a staff assignment replaces the PowerSchool room when it is set. Assign remains `{ staff_id }`. IT admins set or clear the override with `PATCH /api/v1/services/{serviceId}/staff/{staffId}` and `{ "room_override": "Gym" }` (`null` or `""` clears it back to the PowerSchool room).
 
@@ -112,7 +112,7 @@ curl -s -b cookies.txt -X PATCH http://127.0.0.1:47231/api/v1/services/1/staff/1
   -d '{"room_override":"Gym"}'
 ```
 
-Break blocks are not subtracted from bookable windows. The spec does not define that overlap. A slot is unavailable only when a confirmed booking overlaps it. A remainder shorter than one slot is dropped.
+Break blocks are not subtracted from bookable windows. The spec does not define that overlap. A slot is unavailable only when a confirmed booking overlaps it. A remainder shorter than one slot is dropped. When a service has `buffer_minutes` > 0, the next slot start is duration + buffer later; each slot still lasts only `slot_duration_minutes`.
 
 ## Teacher agenda
 

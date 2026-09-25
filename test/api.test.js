@@ -717,4 +717,108 @@ describe('admin API', { concurrency: false }, () => {
     assert.equal(response.status, 404);
     assert.match(response.json.error.message, /not configured/i);
   });
+
+  test('lists and syncs schools from mock PowerSchool', async () => {
+    const denied = await api('/api/v1/schools', { cookie: parent.cookie });
+    assert.equal(denied.status, 403);
+
+    const listed = await api('/api/v1/schools', { cookie: admin.cookie });
+    assert.equal(listed.status, 200, JSON.stringify(listed.json));
+    assert.equal(listed.json.source, 'mock');
+    assert.equal(listed.json.schools.length, 3);
+    assert.equal(listed.json.schools.every((school) => school.synced === false), true);
+
+    const frontList = await api('/api/v1/schools', { cookie: front.cookie });
+    assert.equal(frontList.status, 200);
+    const teacherList = await api('/api/v1/schools', { cookie: teacher.cookie });
+    assert.equal(teacherList.status, 200);
+
+    const parentSync = await api('/api/v1/schools/sync', { method: 'POST', cookie: parent.cookie, body: {} });
+    assert.equal(parentSync.status, 403);
+    const frontSync = await api('/api/v1/schools/sync', { method: 'POST', cookie: front.cookie, body: {} });
+    assert.equal(frontSync.status, 403);
+
+    const sync = await api('/api/v1/schools/sync', { method: 'POST', cookie: admin.cookie, body: {} });
+    assert.equal(sync.status, 200, JSON.stringify(sync.json));
+    assert.equal(sync.json.source, 'mock');
+    assert.equal(sync.json.created, 3);
+    assert.equal(sync.json.updated, 0);
+    assert.equal(sync.json.unchanged, 0);
+    assert.equal(sync.json.schools.length, 3);
+    assert.equal(sync.json.schools.every((school) => school.synced === true && school.id != null), true);
+
+    const again = await api('/api/v1/schools/sync', { method: 'POST', cookie: admin.cookie, body: {} });
+    assert.equal(again.status, 200);
+    assert.equal(again.json.created, 0);
+    assert.equal(again.json.unchanged, 3);
+
+    const merged = await api('/api/v1/schools', { cookie: admin.cookie });
+    assert.equal(merged.status, 200);
+    assert.equal(merged.json.source, 'mock');
+    assert.equal(merged.json.schools.every((school) => school.synced === true), true);
+    const elementary = merged.json.schools.find((school) => school.powerschool_school_id === '1');
+    assert.equal(elementary.name, 'Elementary');
+    assert.ok(elementary.id);
+
+    db.prepare(`INSERT INTO schools (powerschool_school_id, name) VALUES ('99', 'Local Only')`).run();
+    const withLocal = await api('/api/v1/schools', { cookie: admin.cookie });
+    const localOnly = withLocal.json.schools.find((school) => school.powerschool_school_id === '99');
+    assert.equal(localOnly.in_powerschool, false);
+    assert.equal(localOnly.synced, true);
+  });
+
+  test('creates and patches service school_id, buffer_minutes, and active', async () => {
+    const schools = await api('/api/v1/schools/sync', { method: 'POST', cookie: admin.cookie, body: {} });
+    assert.equal(schools.status, 200);
+    const schoolId = schools.json.schools.find((school) => school.powerschool_school_id === '1').id;
+
+    const event = await createEvent(admin.cookie, { name: 'Buffered services' });
+    const created = await api(`/api/v1/events/${event.id}/services`, {
+      method: 'POST',
+      cookie: admin.cookie,
+      body: {
+        name: 'Homeroom',
+        slot_duration_minutes: 15,
+        school_id: schoolId,
+        buffer_minutes: 10,
+      },
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.json));
+    assert.equal(created.json.service.school_id, schoolId);
+    assert.equal(created.json.service.buffer_minutes, 10);
+    assert.equal(created.json.service.active, true);
+
+    const defaults = await api(`/api/v1/events/${event.id}/services`, {
+      method: 'POST',
+      cookie: admin.cookie,
+      body: { name: 'Legacy', slot_duration_minutes: 20 },
+    });
+    assert.equal(defaults.status, 201);
+    assert.equal(defaults.json.service.school_id, null);
+    assert.equal(defaults.json.service.buffer_minutes, 0);
+    assert.equal(defaults.json.service.active, true);
+
+    const badBuffer = await api(`/api/v1/services/${created.json.service.id}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { buffer_minutes: -1 },
+    });
+    assert.equal(badBuffer.status, 400);
+
+    const patched = await api(`/api/v1/services/${created.json.service.id}`, {
+      method: 'PATCH',
+      cookie: admin.cookie,
+      body: { buffer_minutes: 5, active: false, school_id: null },
+    });
+    assert.equal(patched.status, 200, JSON.stringify(patched.json));
+    assert.equal(patched.json.service.buffer_minutes, 5);
+    assert.equal(patched.json.service.active, false);
+    assert.equal(patched.json.service.school_id, null);
+
+    const listed = await api(`/api/v1/events/${event.id}/services`, { cookie: admin.cookie });
+    assert.equal(listed.status, 200);
+    const inactive = listed.json.services.find((service) => service.id === created.json.service.id);
+    assert.equal(inactive.active, false);
+    assert.equal(inactive.buffer_minutes, 5);
+  });
 });
