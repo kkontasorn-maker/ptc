@@ -97,6 +97,13 @@ function initials(name) {
   return bits.map((bit) => bit[0]).join('').toUpperCase() || '?';
 }
 
+function emailInitials(email) {
+  const local = String(email || '').split('@')[0].trim();
+  const bits = local.split(/[._+\-]+/).filter(Boolean).slice(0, 2);
+  if (bits.length >= 2) return bits.map((bit) => bit[0]).join('').toUpperCase();
+  return (local.slice(0, 2) || '?').toUpperCase();
+}
+
 function positiveId(value) {
   return /^[1-9]\d*$/.test(value || '') ? Number(value) : null;
 }
@@ -213,12 +220,25 @@ function IconHome() {
   </svg>`;
 }
 
+function IconPlus() {
+  return html`<svg className="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>`;
+}
+
+function IconPowerSchool() {
+  return html`<svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M8 9h8M8 12h8M8 15h5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>`;
+}
+
 function Shell({ user, active, onSignOut, children }) {
   const home = user.role === 'teacher' ? '#/agenda' : '#/events';
-  return html`<div>
-    <header className="app-header">
+  return html`<div className="admin-shell">
+    <header className="app-header admin-header">
       <${Logo} href=${home} />
-      <nav className="nav" aria-label="Sections">
+      <nav className="nav admin-nav" aria-label="Sections">
         ${user.role === 'teacher' ? html`<a href="#/agenda" className=${active === 'agenda' ? 'active' : ''} aria-current=${active === 'agenda' ? 'page' : undefined}>
           <${IconAgenda} /> Agenda
         </a>` : null}
@@ -235,7 +255,8 @@ function Shell({ user, active, onSignOut, children }) {
           <${IconMail} /> Notification issues
         </a>` : null}
       </nav>
-      <div className="header-user">
+      <div className="header-user admin-header-user">
+        <span className="admin-avatar" aria-hidden="true">${emailInitials(user.email)}</span>
         <div className="who">
           <div className="who-email">${user.email}</div>
           <div className="who-role">${ROLE_LABEL[user.role] || user.role}</div>
@@ -910,10 +931,13 @@ function PowerSchoolCard() {
   }
 
   const connected = Boolean(status?.connected);
-  return html`<article className="card">
-    <div className="title-row">
+  const statusClass = !status ? 'is-checking' : connected ? 'is-connected' : 'is-disconnected';
+  const statusLabel = status ? (connected ? 'Connected' : 'Not connected') : 'Checking…';
+  return html`<article className="card conferences-ps-card">
+    <div className="title-row conferences-ps-head">
+      <span className="icon-badge conferences-ps-badge" aria-hidden="true"><${IconPowerSchool} /></span>
       <h2>PowerSchool</h2>
-      <span className="pill">${status ? (connected ? 'Connected' : 'Not connected') : 'Checking…'}</span>
+      <span className=${cx('pill', 'conferences-ps-status', statusClass)}>${statusLabel}</span>
     </div>
     <div className="data-row">
       <div className="data-label">Last successful call</div>
@@ -922,7 +946,7 @@ function PowerSchoolCard() {
     ${status?.error ? html`<p className="muted section-gap">${status.error}</p>` : null}
     ${note ? html`<p className="muted section-gap">${note}</p>` : null}
     <div className="btn-row section-gap">
-      <button type="button" className="btn btn-secondary" disabled=${busy} onClick=${testConnection}>${busy ? 'Testing…' : 'Test connection'}</button>
+      <button type="button" className="btn btn-secondary conferences-ps-test" disabled=${busy} onClick=${testConnection}>${busy ? 'Testing…' : 'Test connection'}</button>
     </div>
   </article>`;
 }
@@ -954,33 +978,35 @@ function EventsScreen({ user }) {
   }, [state.events]);
 
   return html`<${Shell} user=${user} active="events">
-    <div className="screen-head">
-      <div>
-        <h1>Conferences</h1>
-        <p className="lede">Set up services and availability, then open a conference for parents.</p>
+    <div className="conferences-screen">
+      <div className="screen-head conferences-head">
+        <div>
+          <h1 className="conferences-title">Conferences</h1>
+          <p className="lede">Set up services and availability, then open a conference for parents.</p>
+        </div>
+        ${canWrite && !state.error ? html`<a className="btn btn-primary conferences-create" href="#/events/new"><${IconPlus} /> Create conference</a>` : null}
+        ${state.error ? html`<button type="button" className="btn btn-primary conferences-create" onClick=${load}>Try again</button>` : null}
       </div>
-      ${canWrite && !state.error ? html`<a className="btn btn-primary" href="#/events/new">Create conference</a>` : null}
-      ${state.error ? html`<button type="button" className="btn btn-primary" onClick=${load}>Try again</button>` : null}
-    </div>
-    <div className="stack">
-      ${canWrite ? html`<${PowerSchoolCard} />` : null}
-      <${AccessNote} user=${user} />
-      ${state.loading ? html`<p className="muted">Loading conferences…</p>` : null}
-      ${state.error ? html`<div className="note">${state.error.message}</div>` : null}
-      ${!state.loading && !state.error && ordered.length === 0 ? html`<div className="card">
-        <p>No conferences yet.</p>
-        <p className="lede">Create one when the next parent-teacher day is on the calendar.</p>
-      </div>` : null}
-      ${!state.loading && !state.error ? html`<div className="list">
-        ${ordered.map((event) => html`<a className="card event-card" href=${`#/events/${event.id}`} key=${event.id}>
-          <span className="icon-badge" aria-hidden="true"><${IconCalendar} /></span>
-          <span>
-            <span className="event-title">${event.name}</span>
-            <span className="event-meta">${formatDate(event.event_date)} · ${eventStateLine(event)}</span>
-          </span>
-          <${StatusPill} status=${event.status} attention=${event.id === focusId} />
-        </a>`)}
-      </div>` : null}
+      <div className="stack">
+        ${canWrite ? html`<${PowerSchoolCard} />` : null}
+        <${AccessNote} user=${user} />
+        ${state.loading ? html`<p className="muted">Loading conferences…</p>` : null}
+        ${state.error ? html`<div className="note">${state.error.message}</div>` : null}
+        ${!state.loading && !state.error && ordered.length === 0 ? html`<div className="card conferences-empty">
+          <p>No conferences yet.</p>
+          <p className="lede">Create one when the next parent-teacher day is on the calendar.</p>
+        </div>` : null}
+        ${!state.loading && !state.error ? html`<div className="list conferences-list">
+          ${ordered.map((event) => html`<a className="card event-card conferences-row" href=${`#/events/${event.id}`} key=${event.id}>
+            <span className="icon-badge conferences-row-badge" aria-hidden="true"><${IconCalendar} /></span>
+            <span className="conferences-row-body">
+              <span className="event-title">${event.name}</span>
+              <span className="event-meta">${formatDate(event.event_date)} · ${eventStateLine(event)}</span>
+            </span>
+            <${StatusPill} status=${event.status} attention=${event.id === focusId} />
+          </a>`)}
+        </div>` : null}
+      </div>
     </div>
   </${Shell}>`;
 }

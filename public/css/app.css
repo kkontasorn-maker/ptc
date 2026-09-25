@@ -664,6 +664,292 @@ select.input {
 
 .section-gap { margin-top: 22px; }
 
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex: none;
+}
+
+/* —— Admin chrome (scoped; keeps landing / sign-in headers untouched) —— */
+.admin-shell {
+  --admin-primary: #8C0E06;
+  --admin-primary-tint: #FCEBEB;
+  --admin-body: #141413;
+  --admin-text-secondary: #64676A;
+  --admin-muted: #BCBCBC;
+  --admin-bg: #F6F6F4;
+  --admin-card: #FFFFFF;
+  --admin-border: #E4E4E1;
+  --admin-secondary: #225085;
+  --admin-font-display: "Archivo", "Segoe UI", sans-serif;
+  --admin-font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --admin-shadow: 0 8px 28px rgba(20, 20, 19, 0.06);
+  --admin-shadow-lift: 0 12px 32px rgba(20, 20, 19, 0.1);
+  min-height: 100vh;
+  background: var(--admin-bg);
+  color: var(--admin-body);
+  font-family: var(--admin-font-body);
+}
+
+.admin-header.app-header {
+  min-height: 68px;
+  padding: 0 32px;
+  background: var(--admin-card);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-nav.nav {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-nav a {
+  border-left: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: var(--admin-text-secondary);
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-nav a:hover {
+  background: var(--admin-bg);
+  color: var(--admin-body);
+}
+
+.admin-nav a.active {
+  background: var(--admin-primary-tint);
+  border-left-color: transparent;
+  color: var(--admin-primary);
+  font-weight: 700;
+}
+
+.admin-nav a:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
+.admin-header-user {
+  gap: 14px;
+}
+
+.admin-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: var(--admin-primary-tint);
+  color: var(--admin-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.admin-header-user .who-email {
+  color: var(--admin-body);
+  font-weight: 500;
+}
+
+.admin-header-user .who-role {
+  color: var(--admin-text-secondary);
+}
+
+.admin-header-user .btn-secondary {
+  border-color: var(--admin-border);
+  border-radius: 10px;
+}
+
+.admin-header-user .btn-secondary:hover:not(:disabled) {
+  background: var(--admin-bg);
+}
+
+.admin-header-user .btn:focus-visible {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
+/* —— Conferences list (scoped) —— */
+.conferences-screen {
+  --conferences-primary: #8C0E06;
+  --conferences-primary-tint: #FCEBEB;
+  --conferences-primary-tint-text: #8C0E06;
+  --conferences-body: #141413;
+  --conferences-text-secondary: #64676A;
+  --conferences-muted: #BCBCBC;
+  --conferences-bg: #F6F6F4;
+  --conferences-card: #FFFFFF;
+  --conferences-border: #E4E4E1;
+  --conferences-success-bg: #EAF3DE;
+  --conferences-success-text: #3B6D11;
+  --conferences-info-bg: #EAF1F8;
+  --conferences-info-text: #225085;
+  --conferences-font-display: "Archivo", "Segoe UI", sans-serif;
+  --conferences-shadow: 0 8px 28px rgba(20, 20, 19, 0.06);
+  --conferences-shadow-lift: 0 12px 32px rgba(20, 20, 19, 0.1);
+}
+
+.conferences-title {
+  font-family: var(--conferences-font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--conferences-body);
+  line-height: 1.15;
+}
+
+.conferences-head .lede {
+  color: var(--conferences-text-secondary);
+}
+
+.conferences-create.btn-primary {
+  border-radius: 10px;
+  background: var(--conferences-primary);
+  border-color: var(--conferences-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.conferences-create.btn-primary:hover:not(:disabled) {
+  background: #791F1F;
+  border-color: #791F1F;
+}
+
+.conferences-create:focus-visible {
+  outline: 2px solid var(--conferences-primary);
+  outline-offset: 2px;
+}
+
+.conferences-ps-card {
+  border: 1px solid var(--conferences-border);
+  border-radius: 16px;
+  box-shadow: var(--conferences-shadow);
+  padding: 20px 22px;
+}
+
+.conferences-ps-head {
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.conferences-ps-head h2 {
+  flex: 1;
+  min-width: 0;
+}
+
+.conferences-ps-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--conferences-info-bg);
+  color: var(--conferences-info-text);
+}
+
+.conferences-ps-status {
+  border: none;
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
+.conferences-ps-status.is-connected {
+  background: var(--conferences-success-bg);
+  color: var(--conferences-success-text);
+}
+
+.conferences-ps-status.is-disconnected {
+  background: var(--conferences-primary-tint);
+  color: var(--conferences-primary-tint-text);
+}
+
+.conferences-ps-status.is-checking {
+  background: var(--conferences-bg);
+  color: var(--conferences-text-secondary);
+  font-weight: 500;
+}
+
+.conferences-ps-test.btn-secondary {
+  border-radius: 10px;
+  border: 1px solid var(--conferences-border);
+  background: transparent;
+  color: var(--conferences-body);
+}
+
+.conferences-ps-test.btn-secondary:hover:not(:disabled) {
+  background: var(--conferences-bg);
+}
+
+.conferences-ps-test:focus-visible {
+  outline: 2px solid var(--conferences-primary);
+  outline-offset: 2px;
+}
+
+.conferences-empty {
+  border: 1px solid var(--conferences-border);
+  border-radius: 16px;
+  box-shadow: var(--conferences-shadow);
+}
+
+.conferences-list {
+  gap: 12px;
+}
+
+.conferences-row.event-card {
+  border: 1px solid var(--conferences-border);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.03);
+  padding: 16px 18px;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.conferences-row.event-card:hover {
+  border-color: var(--conferences-border);
+  box-shadow: var(--conferences-shadow-lift);
+  transform: translateY(-1px);
+}
+
+.conferences-row:focus-visible {
+  outline: 2px solid var(--conferences-primary);
+  outline-offset: 2px;
+}
+
+.conferences-row-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--conferences-bg);
+  color: var(--conferences-text-secondary);
+}
+
+.conferences-row-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.conferences-row .event-title {
+  font-weight: 600;
+  color: var(--conferences-body);
+}
+
+.conferences-row .event-meta {
+  color: var(--conferences-text-secondary);
+}
+
+.conferences-row .pill {
+  border: none;
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
+.conferences-row .pill.attention {
+  background: var(--conferences-primary-tint);
+  color: var(--conferences-primary-tint-text);
+}
+
 /* —— Public landing page (scoped; does not alter admin chrome) —— */
 .landing-page {
   --landing-primary: #8C0E06;
@@ -1088,6 +1374,7 @@ select.input {
 
 @media (max-width: 720px) {
   .app-header { flex-wrap: wrap; gap: 12px; padding: 12px 16px; }
+  .admin-header.app-header { padding: 12px 16px; }
   .nav { order: 3; width: 100%; }
   .logo-mark { width: 28px; height: 28px; }
   .wordmark-line { font-size: 11px; letter-spacing: 0.12em; }
@@ -1100,6 +1387,7 @@ select.input {
   .event-card { grid-template-columns: auto 1fr; }
   .event-card .pill { grid-column: 2; justify-self: start; }
   h1 { font-size: 24px; }
+  .conferences-title { font-size: 28px; }
   .btn { width: 100%; }
   .btn-row .btn, .row-actions .btn, .header-user .btn { width: auto; }
   .landing-editor-card-head { flex-direction: column; }
