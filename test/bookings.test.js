@@ -848,4 +848,134 @@ describe('booking submission', { concurrency: false }, () => {
     assert.equal(afterIds.includes(inactiveId), false);
     assert.equal(afterIds.includes(serviceId), true);
   });
+
+  test('POST /bookings rejects picks for a deactivated service', async () => {
+    const extra = await api(`/api/v1/events/${eventId}/services`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { name: 'Closed for new bookings', slot_duration_minutes: 15 },
+    });
+    assert.equal(extra.status, 201, JSON.stringify(extra.json));
+    const closedId = extra.json.service.id;
+    const assigned = await api(`/api/v1/services/${closedId}/staff`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { staff_id: aroonId },
+    });
+    assert.equal(assigned.status, 201);
+
+    const before = await api(`/api/v1/events/${eventId}/parent-view?email=parent@nis.ac.th`, {
+      cookie: parentCookie,
+    });
+    assert.equal(before.status, 200);
+    const teacher = before.json.children[0].teachers.find(
+      (row) => row.staff_id === aroonId && row.service_id === closedId,
+    );
+    assert.ok(teacher);
+    assert.ok(teacher.slots.length >= 1);
+    const slot = teacher.slots[0];
+
+    const deactivated = await api(`/api/v1/services/${closedId}`, {
+      method: 'PATCH',
+      cookie: adminCookie,
+      body: { active: false },
+    });
+    assert.equal(deactivated.status, 200);
+    assert.equal(deactivated.json.service.active, false);
+
+    const rejected = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: parentCookie,
+      body: {
+        parent_email: 'parent@nis.ac.th',
+        parent_relationship: 'mother',
+        picks: [{
+          student_powerschool_id: 'S1001',
+          service_id: closedId,
+          staff_id: aroonId,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+        }],
+      },
+    });
+    assert.equal(rejected.status, 400, JSON.stringify(rejected.json));
+    assert.match(rejected.json.error.message, /no longer accepting new bookings/i);
+    assert.equal(
+      db.prepare(`
+        SELECT COUNT(*) AS n FROM bookings WHERE service_id = ? AND status = 'confirmed'
+      `).get(closedId).n,
+      0,
+    );
+  });
+
+  test('existing booking can still reschedule after service deactivation', async () => {
+    const extra = await api(`/api/v1/events/${eventId}/services`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { name: 'Reschedule after deactivate', slot_duration_minutes: 15 },
+    });
+    assert.equal(extra.status, 201, JSON.stringify(extra.json));
+    const trackId = extra.json.service.id;
+    const assigned = await api(`/api/v1/services/${trackId}/staff`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { staff_id: aroonId },
+    });
+    assert.equal(assigned.status, 201);
+
+    // Fresh window so earlier suite bookings on Aroon do not exhaust open slots.
+    const block = await api(`/api/v1/events/${eventId}/staff/${aroonId}/availability`, {
+      method: 'POST',
+      cookie: adminCookie,
+      body: { start_time: `${future}T10:00`, end_time: `${future}T10:30`, block_type: 'bookable' },
+    });
+    assert.equal(block.status, 201, JSON.stringify(block.json));
+
+    const view = await api(`/api/v1/events/${eventId}/parent-view?email=parent@nis.ac.th`, {
+      cookie: parentCookie,
+    });
+    assert.equal(view.status, 200);
+    const teacher = view.json.children[0].teachers.find(
+      (row) => row.staff_id === aroonId && row.service_id === trackId,
+    );
+    assert.ok(teacher);
+    const open = teacher.slots.filter((slot) => slot.available === true);
+    assert.ok(open.length >= 2, `expected open slots, got ${open.length}`);
+    const [firstSlot, secondSlot] = open;
+
+    const created = await api('/api/v1/bookings', {
+      method: 'POST',
+      cookie: parentCookie,
+      body: {
+        parent_email: 'parent@nis.ac.th',
+        parent_relationship: 'mother',
+        picks: [{
+          student_powerschool_id: 'S1001',
+          service_id: trackId,
+          staff_id: aroonId,
+          start_time: firstSlot.start_time,
+          end_time: firstSlot.end_time,
+        }],
+      },
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.json));
+    const bookingId = created.json.bookings[0].id;
+
+    const deactivated = await api(`/api/v1/services/${trackId}`, {
+      method: 'PATCH',
+      cookie: adminCookie,
+      body: { active: false },
+    });
+    assert.equal(deactivated.status, 200);
+    assert.equal(deactivated.json.service.active, false);
+
+    const moved = await api(`/api/v1/bookings/${bookingId}/reschedule`, {
+      method: 'PATCH',
+      cookie: parentCookie,
+      body: { start_time: secondSlot.start_time, end_time: secondSlot.end_time },
+    });
+    assert.equal(moved.status, 200, JSON.stringify(moved.json));
+    assert.equal(moved.json.booking.start_time, secondSlot.start_time);
+    assert.equal(moved.json.booking.service_id, trackId);
+  });
 });

@@ -158,6 +158,12 @@ export function createBookingRoutes({ repos, psapi, timeZone }) {
           message: 'Choose a teacher from the conference schedule',
         }]);
       }
+      if (!assignment.active) {
+        throw new ValidationError('This service is no longer accepting new bookings', [{
+          field: 'picks',
+          message: 'This service is no longer accepting new bookings',
+        }]);
+      }
       const found = repos.events.findById(assignment.event_id);
       assertOpen(found);
       if (!event) event = found;

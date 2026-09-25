@@ -63,7 +63,8 @@ export class StaffRepository {
     this.assignmentLookupStmt = db.prepare(`
       SELECT s.id AS staff_id, s.powerschool_teacher_id, s.display_name, s.photo_url,
              s.powerschool_school_id,
-             ss.service_id, ss.room_override, sv.slot_duration_minutes, sv.buffer_minutes, sv.event_id
+             ss.service_id, ss.room_override, sv.slot_duration_minutes, sv.buffer_minutes, sv.event_id,
+             sv.active
       FROM staff_services ss
       JOIN staff s ON s.id = ss.staff_id
       JOIN services sv ON sv.id = ss.service_id
@@ -199,6 +200,7 @@ export class StaffRepository {
       slot_duration_minutes: row.slot_duration_minutes,
       buffer_minutes: row.buffer_minutes ?? 0,
       event_id: row.event_id,
+      active: row.active === 1 || row.active === true,
     };
   }
 

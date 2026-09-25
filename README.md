@@ -101,7 +101,7 @@ The spec does not say whether “open for booking” decides draft versus upcomi
 
 A parent session receives `404 Event not found` for an unpublished conference, the same response as a missing id.
 
-`display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email and `powerschool_school_id` are refreshed from PowerSchool. Schools are listed and synced like staff: `GET /api/v1/schools` (it_admin / front_office / teacher) and `POST /api/v1/schools/sync` (it_admin). Services accept optional `school_id`, `buffer_minutes` (default 0), and `active`; parent-view schedules only active services. Slot grids advance by duration + buffer between starts.
+`display_name` and `photo_url` are local overrides. Sync does not overwrite them, or `active`. Email and `powerschool_school_id` are refreshed from PowerSchool. Schools are listed and synced like staff: `GET /api/v1/schools` (it_admin / front_office / teacher) and `POST /api/v1/schools/sync` (it_admin). Services accept optional `school_id`, `buffer_minutes` (default 0), and `active`; parent-view schedules only active services, and `POST /bookings` rejects picks for an inactive service. Deactivation is non-destructive: existing confirmed bookings can still `PATCH /bookings/:id/reschedule`. Slot grids advance by duration + buffer between starts.
 
 Guardian lookups are cached for 5 minutes per email. Slot availability is computed on each parent-view request. `room_override` on a staff assignment replaces the PowerSchool room when it is set. Assign remains `{ staff_id }`. IT admins set or clear the override with `PATCH /api/v1/services/{serviceId}/staff/{staffId}` and `{ "room_override": "Gym" }` (`null` or `""` clears it back to the PowerSchool room).
 
