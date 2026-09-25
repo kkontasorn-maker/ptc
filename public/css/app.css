@@ -396,6 +396,34 @@ select.input {
 
 .toggle.on .toggle-knob { left: 21px; }
 
+.toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.school-panel-head {
+  margin-bottom: 4px;
+}
+
+.school-service-body {
+  border-top: 0.5px solid var(--border);
+  margin-top: 12px;
+  padding-top: 4px;
+}
+
+.legacy-services {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--border);
+}
+
+.legacy-services-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
 .lock-row {
   display: flex;
   align-items: center;

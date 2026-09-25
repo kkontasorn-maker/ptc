@@ -1049,7 +1049,7 @@ function Subnav({ id, section, user }) {
   const canReport = user.role === 'it_admin' || user.role === 'front_office';
   return html`<nav className="subnav" aria-label="Conference">
     <a href=${`#/events/${id}`} className=${section === 'details' ? 'active' : ''}>Details</a>
-    <a href=${`#/events/${id}/services`} className=${section === 'services' ? 'active' : ''}>Services</a>
+    <a href=${`#/events/${id}/services`} className=${section === 'services' ? 'active' : ''}>Schools</a>
     <a href=${`#/events/${id}/availability`} className=${section === 'availability' ? 'active' : ''}>Availability</a>
     ${canReport ? html`<a href=${`#/events/${id}/custom-fields`} className=${section === 'custom-fields' ? 'active' : ''}>Custom fields</a>` : null}
     ${canReport ? html`<a href=${`#/events/${id}/bookings`} className=${section === 'bookings' ? 'active' : ''}>Bookings</a>` : null}
@@ -1263,26 +1263,66 @@ function DeleteControl({ label, busy, onConfirm }) {
   </div>`;
 }
 
+function serviceRoomText(member, staffDirectory) {
+  const room = staffDirectory.find((item) => item.id === member.id)?.powerschool_room;
+  if (member.room_override) return `Room ${member.room_override} for this service`;
+  if (room) return `PowerSchool room ${room}`;
+  return 'PowerSchool room not set';
+}
+
+function serviceForSchool(services, schoolId) {
+  if (schoolId == null) return null;
+  const matches = services.filter((service) => service.school_id === schoolId);
+  return matches.find((service) => service.active) || matches[0] || null;
+}
+
 function ServicesPanel({ event, user, onChange }) {
   const canWrite = user.role === 'it_admin';
   const [editingId, setEditingId] = useState(null);
   const [name, setName] = useState('');
   const [duration, setDuration] = useState('15');
+  const [buffer, setBuffer] = useState('0');
   const [fields, setFields] = useState({});
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
   const [directory, setDirectory] = useState(null);
+  const [schools, setSchools] = useState(null);
+  const [schoolsWarning, setSchoolsWarning] = useState('');
+  const [schoolsSource, setSchoolsSource] = useState('');
 
   useEffect(() => {
     let live = true;
     api('/staff')
       .then((data) => { if (live) setDirectory(data.staff || []); })
       .catch(() => { if (live) setDirectory([]); });
+    api('/schools')
+      .then((data) => {
+        if (!live) return;
+        setSchools(data.schools || []);
+        setSchoolsWarning(data.warning || '');
+        setSchoolsSource(data.source || '');
+      })
+      .catch((error) => {
+        if (!live) return;
+        setSchools([]);
+        setSchoolsWarning(error.message);
+        setSchoolsSource('');
+      });
     return () => { live = false; };
   }, [event.id]);
 
   function beginEdit(service) {
+    setEditingId(service.id);
+    setName(service.name);
+    setDuration(String(service.slot_duration_minutes));
+    setBuffer(String(service.buffer_minutes ?? 0));
+    setFields({});
+    setFormError('');
+    setSuccess('');
+  }
+
+  function beginLegacyEdit(service) {
     setEditingId(service.id);
     setName(service.name);
     setDuration(String(service.slot_duration_minutes));
@@ -1291,7 +1331,73 @@ function ServicesPanel({ event, user, onChange }) {
     setSuccess('');
   }
 
-  async function saveService(formEvent) {
+  async function reloadSchools() {
+    const data = await api('/schools');
+    setSchools(data.schools || []);
+    setSchoolsWarning(data.warning || '');
+    setSchoolsSource(data.source || '');
+    return data.schools || [];
+  }
+
+  async function syncSchools() {
+    setBusy(true);
+    setFormError('');
+    setSuccess('');
+    try {
+      const data = await api('/schools/sync', { method: 'POST', body: {} });
+      setSchools(data.schools || []);
+      setSchoolsWarning('');
+      setSchoolsSource(data.source || '');
+      const place = data.source === 'mock' ? 'the PowerSchool stand-in' : 'PowerSchool';
+      setSuccess(`Synced ${data.created + data.updated + data.unchanged} schools from ${place}.`);
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function ensureSchoolId(school) {
+    if (school.id != null) return school.id;
+    const data = await api('/schools/sync', { method: 'POST', body: {} });
+    setSchools(data.schools || []);
+    setSchoolsWarning('');
+    setSchoolsSource(data.source || '');
+    const matched = (data.schools || []).find(
+      (item) => item.powerschool_school_id === school.powerschool_school_id,
+    );
+    if (!matched?.id) {
+      throw new Error('That school could not be synced. Try Sync schools again.');
+    }
+    return matched.id;
+  }
+
+  async function saveSchoolService(formEvent) {
+    formEvent.preventDefault();
+    if (!editingId) return;
+    setBusy(true);
+    setFormError('');
+    setFields({});
+    const payload = {
+      name,
+      slot_duration_minutes: Number(duration),
+      buffer_minutes: Number(buffer),
+    };
+    try {
+      await api(`/services/${editingId}`, { method: 'PATCH', body: payload });
+      setSuccess('Service saved.');
+      setEditingId(null);
+      onChange();
+    } catch (error) {
+      const mapped = fieldMap(error);
+      setFields(mapped);
+      setFormError(Object.keys(mapped).length ? '' : error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveLegacyService(formEvent) {
     formEvent.preventDefault();
     setBusy(true);
     setFormError('');
@@ -1356,70 +1462,209 @@ function ServicesPanel({ event, user, onChange }) {
     }
   }
 
+  async function toggleSchool(school, nextOn) {
+    if (!canWrite || busy) return;
+    setBusy(true);
+    setFormError('');
+    setSuccess('');
+    try {
+      const schoolId = nextOn ? await ensureSchoolId(school) : school.id;
+      const service = serviceForSchool(event.services, schoolId ?? school.id);
+      if (nextOn) {
+        if (!service) {
+          await api(`/events/${event.id}/services`, {
+            method: 'POST',
+            body: {
+              name: `${school.name} Conference`,
+              slot_duration_minutes: 15,
+              school_id: schoolId,
+            },
+          });
+          setSuccess(`${school.name} is on.`);
+        } else if (!service.active) {
+          await api(`/services/${service.id}`, { method: 'PATCH', body: { active: true } });
+          setSuccess(`${school.name} is on.`);
+        }
+      } else if (service) {
+        await api(`/services/${service.id}`, { method: 'PATCH', body: { active: false } });
+        setSuccess(`${school.name} is off.`);
+        if (editingId === service.id) setEditingId(null);
+      }
+      if (school.id == null && nextOn) await reloadSchools();
+      onChange();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleTeacher(service, member, nextOn) {
+    if (!canWrite || !member.id || busy) return;
+    if (nextOn) await assign(service.id, member.id);
+    else await unassign(service.id, member.id);
+  }
+
   const staffDirectory = directory || [];
   const synced = staffDirectory.filter((member) => member.id && member.active);
+  const schoolList = schools || [];
+  const legacyServices = event.services.filter((service) => service.school_id == null);
 
   return html`<div className="stack">
+    <div className="screen-head school-panel-head">
+      <div>
+        <p className="lede">Turn on a school to offer conferences there. Teachers match by PowerSchool school.</p>
+      </div>
+      ${canWrite ? html`<button type="button" className="btn btn-primary" disabled=${busy} onClick=${syncSchools}>${busy ? 'Syncing…' : 'Sync schools'}</button>` : null}
+    </div>
     ${success ? html`<div><span className="success-note">${success}</span></div>` : null}
     ${formError ? html`<div className="note">${formError}</div>` : null}
-    ${canWrite && !editingId ? html`<form className="card form" onSubmit=${saveService}>
-      <h2>Add a service</h2>
-      <label className="field">
-        <span className="field-label">Name</span>
-        <input className="input" required value=${name} onInput=${(event) => setName(event.target.value)} />
-        ${fields.name ? html`<span className="field-error">${fields.name}</span>` : null}
-      </label>
-      <label className="field">
-        <span className="field-label">Slot length (minutes)</span>
-        <input className="input" inputMode="numeric" required value=${duration} onInput=${(event) => setDuration(event.target.value)} />
-        <span className="field-hint">One length for every teacher on this service.</span>
-        ${fields.slot_duration_minutes ? html`<span className="field-error">${fields.slot_duration_minutes}</span>` : null}
-      </label>
-      <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Adding…' : 'Add service'}</button>
-    </form>` : null}
-    ${event.services.length === 0 ? html`<div className="card"><p>No services yet.</p><p className="lede">A service is a bookable offering, such as elementary conferences, with one slot length.</p></div>` : null}
-    ${event.services.map((service) => html`<article className="card" key=${service.id}>
-      ${editingId === service.id ? html`<form className="form" onSubmit=${saveService}>
+    ${schoolsWarning ? html`<div className="note">${schoolsWarning}</div>` : null}
+    ${schoolsSource === 'mock' ? html`<p className="muted">Showing the PowerSchool stand-in. Set PSAPI credentials to sync the live school list.</p>` : null}
+    ${schools === null || directory === null ? html`<p className="muted">Loading schools…</p>` : null}
+    ${schools !== null && schoolList.length === 0 ? html`<div className="card">
+      <p>No schools on file.</p>
+      <p className="lede">${canWrite ? 'Sync schools from PowerSchool to turn conferences on by school.' : 'Ask an IT admin to sync schools from PowerSchool.'}</p>
+    </div>` : null}
+    ${schoolList.map((school) => {
+      const service = serviceForSchool(event.services, school.id);
+      const isOn = Boolean(service && service.active);
+      const schoolStaff = staffDirectory.filter(
+        (member) => String(member.powerschool_school_id || '') === String(school.powerschool_school_id || ''),
+      );
+      const assignedById = new Map((service?.staff || []).map((member) => [member.id, member]));
+      return html`<article className="card school-service" key=${school.powerschool_school_id || school.id}>
+        <div className="switch-row">
+          <div>
+            <div className="person-name">${school.name}</div>
+            ${!school.id ? html`<div className="muted">Not synced yet</div>` : null}
+          </div>
+          ${canWrite ? html`<button
+            type="button"
+            className=${cx('toggle', isOn && 'on')}
+            role="switch"
+            aria-checked=${isOn ? 'true' : 'false'}
+            aria-label=${`${school.name} conferences`}
+            disabled=${busy}
+            onClick=${() => toggleSchool(school, !isOn)}
+          ><span className="toggle-knob"></span></button>` : html`<span className="pill">${isOn ? 'On' : 'Off'}</span>`}
+        </div>
+        ${isOn && service ? html`<div className="school-service-body">
+          ${editingId === service.id ? html`<form className="form section-gap" onSubmit=${saveSchoolService}>
+            <label className="field">
+              <span className="field-label">Name</span>
+              <input className="input" required value=${name} onInput=${(event) => setName(event.target.value)} />
+              ${fields.name ? html`<span className="field-error">${fields.name}</span>` : null}
+            </label>
+            <label className="field">
+              <span className="field-label">Slot length (minutes)</span>
+              <input className="input" inputMode="numeric" required value=${duration} onInput=${(event) => setDuration(event.target.value)} />
+              ${fields.slot_duration_minutes ? html`<span className="field-error">${fields.slot_duration_minutes}</span>` : null}
+            </label>
+            <label className="field">
+              <span className="field-label">Travel time (minutes)</span>
+              <input className="input" inputMode="numeric" required value=${buffer} onInput=${(event) => setBuffer(event.target.value)} />
+              <span className="field-hint">Gap between the end of one slot and the start of the next.</span>
+              ${fields.buffer_minutes ? html`<span className="field-error">${fields.buffer_minutes}</span>` : null}
+            </label>
+            <div className="btn-row">
+              <button className="btn btn-primary" type="submit" disabled=${busy}>Save service</button>
+              <button className="btn btn-secondary" type="button" onClick=${() => setEditingId(null)}>Cancel</button>
+            </div>
+          </form>` : html`<div className="section-gap">
+            <h2>${service.name}</h2>
+            <p className="event-meta">${service.slot_duration_minutes} minutes · Travel time ${service.buffer_minutes ?? 0} minutes</p>
+            ${canWrite ? html`<div className="btn-row">
+              <button type="button" className="btn btn-secondary" onClick=${() => beginEdit(service)}>Edit</button>
+            </div>` : null}
+          </div>`}
+          <div className="section-gap">
+            <div className="field-label">Teachers</div>
+            ${schoolStaff.length === 0 ? html`<p className="muted">No teachers for this school in the directory.</p>` : schoolStaff.map((member) => {
+              const assignment = member.id ? assignedById.get(member.id) : null;
+              const assigned = Boolean(assignment);
+              const room = assignment
+                ? serviceRoomText(assignment, staffDirectory)
+                : member.powerschool_room
+                  ? `PowerSchool room ${member.powerschool_room}`
+                  : 'PowerSchool room not set';
+              return html`<div className="staff-line" key=${member.id || member.powerschool_teacher_id}>
+                <div>
+                  <div className="person-name">${member.display_name}${member.active === false ? ' (inactive)' : ''}${!member.id ? ' (not synced)' : ''}</div>
+                  <div className="muted">${member.email} · ${room}</div>
+                </div>
+                ${canWrite && member.id ? html`<button
+                  type="button"
+                  className=${cx('toggle', assigned && 'on')}
+                  role="switch"
+                  aria-checked=${assigned ? 'true' : 'false'}
+                  aria-label=${`Assign ${member.display_name}`}
+                  disabled=${busy || (!assigned && member.active === false)}
+                  onClick=${() => toggleTeacher(service, member, !assigned)}
+                ><span className="toggle-knob"></span></button>` : assigned ? html`<span className="pill">Assigned</span>` : null}
+              </div>`;
+            })}
+          </div>
+        </div>` : null}
+      </article>`;
+    })}
+    <section className="legacy-services stack">
+      <h2 className="legacy-services-title">Other</h2>
+      <p className="lede">Services not tied to a school. Same tools as before.</p>
+      ${canWrite && !editingId ? html`<form className="card form" onSubmit=${saveLegacyService}>
+        <h2>Add a service</h2>
         <label className="field">
           <span className="field-label">Name</span>
           <input className="input" required value=${name} onInput=${(event) => setName(event.target.value)} />
+          ${fields.name ? html`<span className="field-error">${fields.name}</span>` : null}
         </label>
         <label className="field">
           <span className="field-label">Slot length (minutes)</span>
           <input className="input" inputMode="numeric" required value=${duration} onInput=${(event) => setDuration(event.target.value)} />
+          <span className="field-hint">One length for every teacher on this service.</span>
+          ${fields.slot_duration_minutes ? html`<span className="field-error">${fields.slot_duration_minutes}</span>` : null}
         </label>
-        <div className="btn-row">
-          <button className="btn btn-primary" type="submit" disabled=${busy}>Save service</button>
-          <button className="btn btn-secondary" type="button" onClick=${() => setEditingId(null)}>Cancel</button>
-        </div>
-      </form>` : html`<div>
-        <h2>${service.name}</h2>
-        <p className="event-meta">${service.slot_duration_minutes} minutes</p>
-        <div className="section-gap">
-          ${service.staff.length === 0 ? html`<p className="muted">No staff assigned.</p>` : service.staff.map((member) => {
-            const room = staffDirectory.find((item) => item.id === member.id)?.powerschool_room;
-            const roomText = member.room_override
-              ? `Room ${member.room_override} for this service`
-              : room
-                ? `PowerSchool room ${room}`
-                : 'PowerSchool room not set';
-            return html`<div className="staff-line" key=${member.id}>
-              <div>
-                <div className="person-name">${member.display_name}${member.active ? '' : ' (inactive)'}</div>
-                <div className="muted">${member.email} · ${roomText}</div>
-              </div>
-              ${canWrite ? html`<button type="button" className="btn btn-secondary" onClick=${() => unassign(service.id, member.id)}>Remove</button>` : null}
-            </div>`;
-          })}
-        </div>
-        ${canWrite ? html`<${AssignRow} service=${service} options=${synced} onAssign=${assign} />` : null}
-        ${canWrite ? html`<div className="btn-row section-gap">
-          <button type="button" className="btn btn-secondary" onClick=${() => beginEdit(service)}>Edit</button>
-          <${DeleteControl} label="Delete this service?" busy=${busy} onConfirm=${() => removeService(service.id)} />
-        </div>` : null}
-      </div>`}
-    </article>`)}
-    ${canWrite && directory && synced.length === 0 ? html`<p className="muted">Sync teachers on the Staff screen before assigning them.</p>` : null}
+        <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Adding…' : 'Add service'}</button>
+      </form>` : null}
+      ${legacyServices.length === 0 ? html`<div className="card"><p>No services yet.</p><p className="lede">A service is a bookable offering, such as elementary conferences, with one slot length.</p></div>` : null}
+      ${legacyServices.map((service) => html`<article className="card" key=${service.id}>
+        ${editingId === service.id ? html`<form className="form" onSubmit=${saveLegacyService}>
+          <label className="field">
+            <span className="field-label">Name</span>
+            <input className="input" required value=${name} onInput=${(event) => setName(event.target.value)} />
+          </label>
+          <label className="field">
+            <span className="field-label">Slot length (minutes)</span>
+            <input className="input" inputMode="numeric" required value=${duration} onInput=${(event) => setDuration(event.target.value)} />
+          </label>
+          <div className="btn-row">
+            <button className="btn btn-primary" type="submit" disabled=${busy}>Save service</button>
+            <button className="btn btn-secondary" type="button" onClick=${() => setEditingId(null)}>Cancel</button>
+          </div>
+        </form>` : html`<div>
+          <h2>${service.name}</h2>
+          <p className="event-meta">${service.slot_duration_minutes} minutes</p>
+          <div className="section-gap">
+            ${service.staff.length === 0 ? html`<p className="muted">No staff assigned.</p>` : service.staff.map((member) => {
+              const roomText = serviceRoomText(member, staffDirectory);
+              return html`<div className="staff-line" key=${member.id}>
+                <div>
+                  <div className="person-name">${member.display_name}${member.active ? '' : ' (inactive)'}</div>
+                  <div className="muted">${member.email} · ${roomText}</div>
+                </div>
+                ${canWrite ? html`<button type="button" className="btn btn-secondary" onClick=${() => unassign(service.id, member.id)}>Remove</button>` : null}
+              </div>`;
+            })}
+          </div>
+          ${canWrite ? html`<${AssignRow} service=${service} options=${synced} onAssign=${assign} />` : null}
+          ${canWrite ? html`<div className="btn-row section-gap">
+            <button type="button" className="btn btn-secondary" onClick=${() => beginLegacyEdit(service)}>Edit</button>
+            <${DeleteControl} label="Delete this service?" busy=${busy} onConfirm=${() => removeService(service.id)} />
+          </div>` : null}
+        </div>`}
+      </article>`)}
+      ${canWrite && directory && synced.length === 0 ? html`<p className="muted">Sync teachers on the Staff screen before assigning them.</p>` : null}
+    </section>
   </div>`;
 }
 
