@@ -233,6 +233,32 @@ function IconPowerSchool() {
   </svg>`;
 }
 
+function IconCheck() {
+  return html`<svg className="schools-banner-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M8 12.2l2.6 2.6L16.2 9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>`;
+}
+
+function IconInfo() {
+  return html`<svg className="schools-banner-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M12 10.5v5.5M12 7.75h.01" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>`;
+}
+
+function IconChevronDown() {
+  return html`<svg className="schools-chevron" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M6.5 9.5L12 15l5.5-5.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>`;
+}
+
+function IconChevronRight() {
+  return html`<svg className="schools-chevron" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M9.5 6.5L15 12l-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>`;
+}
+
 function Shell({ user, active, onSignOut, children }) {
   const home = user.role === 'teacher' ? '#/agenda' : '#/events';
   return html`<div className="admin-shell">
@@ -1073,7 +1099,7 @@ function NewEventScreen({ user }) {
 
 function Subnav({ id, section, user }) {
   const canReport = user.role === 'it_admin' || user.role === 'front_office';
-  return html`<nav className="subnav" aria-label="Conference">
+  return html`<nav className="subnav event-admin-subnav" aria-label="Conference">
     <a href=${`#/events/${id}`} className=${section === 'details' ? 'active' : ''}>Details</a>
     <a href=${`#/events/${id}/services`} className=${section === 'services' ? 'active' : ''}>Schools</a>
     <a href=${`#/events/${id}/availability`} className=${section === 'availability' ? 'active' : ''}>Availability</a>
@@ -1148,25 +1174,27 @@ function EventWorkspace({ user, eventId, section, timeZone }) {
   }
 
   return html`<${Shell} user=${user} active="events">
-    <a className="back" href="#/events">Conferences</a>
-    ${state.loading && !state.event ? html`<p className="muted section-gap">Loading conference…</p>` : null}
-    ${state.error ? html`<div className="stack section-gap">
-      <div className="note">${state.error.message}</div>
-      <button type="button" className="btn btn-primary" onClick=${reload}>Try again</button>
-    </div>` : null}
-    ${state.event ? html`<div className="section-gap">
-      <div className="title-row">
-        <h1>${state.event.name}</h1>
-        <${StatusPill} status=${state.event.status} attention=${true} />
-      </div>
-      <${Subnav} id=${state.event.id} section=${section} user=${user} />
-      <${AccessNote} user=${user} />
-      ${section === 'details' ? html`<${DetailsPanel} event=${state.event} user=${user} timeZone=${timeZone} onSaved=${reload} />` : null}
-      ${section === 'services' ? html`<${ServicesPanel} event=${state.event} user=${user} onChange=${reload} />` : null}
-      ${section === 'availability' ? html`<${AvailabilityPanel} event=${state.event} user=${user} timeZone=${timeZone} />` : null}
-      ${section === 'custom-fields' ? html`<${CustomFieldsPanel} event=${state.event} user=${user} />` : null}
-      ${section === 'bookings' ? html`<${BookingsReport} event=${state.event} />` : null}
-    </div>` : null}
+    <div className="event-admin">
+      <a className="event-admin-back" href="#/events">← Conferences</a>
+      ${state.loading && !state.event ? html`<p className="muted section-gap">Loading conference…</p>` : null}
+      ${state.error ? html`<div className="stack section-gap">
+        <div className="note">${state.error.message}</div>
+        <button type="button" className="btn btn-primary" onClick=${reload}>Try again</button>
+      </div>` : null}
+      ${state.event ? html`<div className="section-gap">
+        <div className="event-admin-title title-row">
+          <h1>${state.event.name}</h1>
+          <${StatusPill} status=${state.event.status} attention=${true} />
+        </div>
+        <${Subnav} id=${state.event.id} section=${section} user=${user} />
+        <${AccessNote} user=${user} />
+        ${section === 'details' ? html`<${DetailsPanel} event=${state.event} user=${user} timeZone=${timeZone} onSaved=${reload} />` : null}
+        ${section === 'services' ? html`<${ServicesPanel} event=${state.event} user=${user} onChange=${reload} />` : null}
+        ${section === 'availability' ? html`<${AvailabilityPanel} event=${state.event} user=${user} timeZone=${timeZone} />` : null}
+        ${section === 'custom-fields' ? html`<${CustomFieldsPanel} event=${state.event} user=${user} />` : null}
+        ${section === 'bookings' ? html`<${BookingsReport} event=${state.event} />` : null}
+      </div>` : null}
+    </div>
   </${Shell}>`;
 }
 
@@ -1275,25 +1303,50 @@ function DetailsPanel({ event, user, timeZone, onSaved }) {
   </form>`;
 }
 
-function DeleteControl({ label, busy, onConfirm }) {
+function DeleteControl({ label, busy, onConfirm, danger }) {
   const [open, setOpen] = useState(false);
+  const btnClass = danger ? 'btn schools-btn-danger' : 'btn btn-secondary';
   if (!open) {
-    return html`<button type="button" className="btn btn-secondary" onClick=${() => setOpen(true)}>Delete</button>`;
+    return html`<button type="button" className=${btnClass} onClick=${() => setOpen(true)}>Delete</button>`;
   }
   return html`<div className="confirm">
     <p>${label}</p>
     <div className="row-actions section-gap">
       <button type="button" className="btn btn-secondary" onClick=${() => setOpen(false)}>Cancel</button>
-      <button type="button" className="btn btn-secondary" disabled=${busy} onClick=${onConfirm}>Delete</button>
+      <button type="button" className=${btnClass} disabled=${busy} onClick=${onConfirm}>Delete</button>
     </div>
   </div>`;
 }
 
-function serviceRoomText(member, staffDirectory) {
-  const room = staffDirectory.find((item) => item.id === member.id)?.powerschool_room;
-  if (member.room_override) return `Room ${member.room_override} for this service`;
-  if (room) return `PowerSchool room ${room}`;
-  return 'PowerSchool room not set';
+function roomPillLabel(member, staffDirectory) {
+  const directoryRoom = member.id
+    ? staffDirectory.find((item) => item.id === member.id)?.powerschool_room
+    : null;
+  if (member.room_override) return `Room ${member.room_override}`;
+  if (directoryRoom) return `Room ${directoryRoom}`;
+  if (member.powerschool_room) return `Room ${member.powerschool_room}`;
+  return 'No room';
+}
+
+function TeacherToggleRow({ member, assigned, assignment, staffDirectory, canWrite, busy, onToggle }) {
+  const room = roomPillLabel(assignment || member, staffDirectory);
+  return html`<div className="schools-teacher-row">
+    <${Avatar} name=${member.display_name} photo=${member.photo_url} />
+    <div className="schools-teacher-copy">
+      <div className="schools-teacher-name">${member.display_name}${member.active === false ? ' (inactive)' : ''}${!member.id ? ' (not synced)' : ''}</div>
+      <div className="schools-teacher-email">${member.email || 'No email'}</div>
+    </div>
+    <span className="schools-room-pill">${room}</span>
+    ${canWrite && member.id ? html`<button
+      type="button"
+      className=${cx('schools-toggle', assigned && 'on')}
+      role="switch"
+      aria-checked=${assigned ? 'true' : 'false'}
+      aria-label=${`Assign ${member.display_name}`}
+      disabled=${busy || (!assigned && member.active === false)}
+      onClick=${() => onToggle(!assigned)}
+    ><span className="schools-toggle-knob"></span></button>` : assigned ? html`<span className="pill">Assigned</span>` : null}
+  </div>`;
 }
 
 function serviceForSchool(services, schoolId) {
@@ -1316,6 +1369,7 @@ function ServicesPanel({ event, user, onChange }) {
   const [schools, setSchools] = useState(null);
   const [schoolsWarning, setSchoolsWarning] = useState('');
   const [schoolsSource, setSchoolsSource] = useState('');
+  const [expandedOther, setExpandedOther] = useState({});
 
   useEffect(() => {
     let live = true;
@@ -1532,23 +1586,41 @@ function ServicesPanel({ event, user, onChange }) {
   }
 
   const staffDirectory = directory || [];
-  const synced = staffDirectory.filter((member) => member.id && member.active);
+  const syncedTeachers = staffDirectory.filter((member) => member.id);
   const schoolList = schools || [];
   const legacyServices = event.services.filter((service) => service.school_id == null);
 
-  return html`<div className="stack">
-    <div className="screen-head school-panel-head">
+  function isOtherExpanded(serviceId) {
+    if (editingId === serviceId) return true;
+    return expandedOther[serviceId] !== false;
+  }
+
+  function toggleOtherExpanded(serviceId) {
+    setExpandedOther((current) => ({
+      ...current,
+      [serviceId]: !(current[serviceId] !== false),
+    }));
+  }
+
+  return html`<div className="stack schools-panel">
+    <div className="screen-head schools-panel-head">
       <div>
         <p className="lede">Turn on a school to offer conferences there. Teachers match by PowerSchool school.</p>
       </div>
       ${canWrite ? html`<button type="button" className="btn btn-primary" disabled=${busy} onClick=${syncSchools}>${busy ? 'Syncing…' : 'Sync schools'}</button>` : null}
     </div>
-    ${success ? html`<div><span className="success-note">${success}</span></div>` : null}
+    ${success ? html`<div className="schools-banner schools-banner-success" role="status">
+      <${IconCheck} />
+      <span>${success}</span>
+    </div>` : null}
     ${formError ? html`<div className="note">${formError}</div>` : null}
     ${schoolsWarning ? html`<div className="note">${schoolsWarning}</div>` : null}
-    ${schoolsSource === 'mock' ? html`<p className="muted">Showing the PowerSchool stand-in. Set PSAPI credentials to sync the live school list.</p>` : null}
+    ${schoolsSource === 'mock' ? html`<div className="schools-banner schools-banner-advisory" role="status">
+      <${IconInfo} />
+      <span>Showing the PowerSchool stand-in. Set PSAPI credentials to sync the live school list.</span>
+    </div>` : null}
     ${schools === null || directory === null ? html`<p className="muted">Loading schools…</p>` : null}
-    ${schools !== null && schoolList.length === 0 ? html`<div className="card">
+    ${schools !== null && schoolList.length === 0 ? html`<div className="card schools-empty">
       <p>No schools on file.</p>
       <p className="lede">${canWrite ? 'Sync schools from PowerSchool to turn conferences on by school.' : 'Ask an IT admin to sync schools from PowerSchool.'}</p>
     </div>` : null}
@@ -1559,24 +1631,25 @@ function ServicesPanel({ event, user, onChange }) {
         (member) => String(member.powerschool_school_id || '') === String(school.powerschool_school_id || ''),
       );
       const assignedById = new Map((service?.staff || []).map((member) => [member.id, member]));
-      return html`<article className="card school-service" key=${school.powerschool_school_id || school.id}>
-        <div className="switch-row">
-          <div>
-            <div className="person-name">${school.name}</div>
+      return html`<article className=${cx('card schools-school-card', isOn ? 'is-on' : 'is-off')} key=${school.powerschool_school_id || school.id}>
+        <div className="schools-school-row">
+          <span className=${cx('schools-chevron-wrap', isOn ? 'is-open' : '')} aria-hidden="true">${isOn ? html`<${IconChevronDown} />` : html`<${IconChevronRight} />`}</span>
+          <div className="schools-school-copy">
+            <div className=${cx('schools-school-name', !isOn && 'is-off')}>${school.name}</div>
             ${!school.id ? html`<div className="muted">Not synced yet</div>` : null}
           </div>
           ${canWrite ? html`<button
             type="button"
-            className=${cx('toggle', isOn && 'on')}
+            className=${cx('schools-toggle', isOn && 'on')}
             role="switch"
             aria-checked=${isOn ? 'true' : 'false'}
             aria-label=${`${school.name} conferences`}
             disabled=${busy}
             onClick=${() => toggleSchool(school, !isOn)}
-          ><span className="toggle-knob"></span></button>` : html`<span className="pill">${isOn ? 'On' : 'Off'}</span>`}
+          ><span className="schools-toggle-knob"></span></button>` : html`<span className="pill">${isOn ? 'On' : 'Off'}</span>`}
         </div>
-        ${isOn && service ? html`<div className="school-service-body">
-          ${editingId === service.id ? html`<form className="form section-gap" onSubmit=${saveSchoolService}>
+        ${isOn && service ? html`<div className="schools-school-body">
+          ${editingId === service.id ? html`<form className="form section-gap schools-service-form" onSubmit=${saveSchoolService}>
             <label className="field">
               <span className="field-label">Name</span>
               <input className="input" required value=${name} onInput=${(event) => setName(event.target.value)} />
@@ -1597,47 +1670,36 @@ function ServicesPanel({ event, user, onChange }) {
               <button className="btn btn-primary" type="submit" disabled=${busy}>Save service</button>
               <button className="btn btn-secondary" type="button" onClick=${() => setEditingId(null)}>Cancel</button>
             </div>
-          </form>` : html`<div className="section-gap">
-            <h2>${service.name}</h2>
-            <p className="event-meta">${service.slot_duration_minutes} minutes · Travel time ${service.buffer_minutes ?? 0} minutes</p>
-            ${canWrite ? html`<div className="btn-row">
-              <button type="button" className="btn btn-secondary" onClick=${() => beginEdit(service)}>Edit</button>
-            </div>` : null}
+          </form>` : html`<div className="schools-conference-card">
+            <div className="schools-conference-copy">
+              <h2>${service.name}</h2>
+              <p className="event-meta">${service.slot_duration_minutes} minutes · Travel time ${service.buffer_minutes ?? 0} minutes</p>
+            </div>
+            ${canWrite ? html`<button type="button" className="btn btn-secondary" onClick=${() => beginEdit(service)}>Edit</button>` : null}
           </div>`}
-          <div className="section-gap">
+          <div className="schools-teachers">
             <div className="field-label">Teachers</div>
             ${schoolStaff.length === 0 ? html`<p className="muted">No teachers for this school in the directory.</p>` : schoolStaff.map((member) => {
               const assignment = member.id ? assignedById.get(member.id) : null;
-              const assigned = Boolean(assignment);
-              const room = assignment
-                ? serviceRoomText(assignment, staffDirectory)
-                : member.powerschool_room
-                  ? `PowerSchool room ${member.powerschool_room}`
-                  : 'PowerSchool room not set';
-              return html`<div className="staff-line" key=${member.id || member.powerschool_teacher_id}>
-                <div>
-                  <div className="person-name">${member.display_name}${member.active === false ? ' (inactive)' : ''}${!member.id ? ' (not synced)' : ''}</div>
-                  <div className="muted">${member.email} · ${room}</div>
-                </div>
-                ${canWrite && member.id ? html`<button
-                  type="button"
-                  className=${cx('toggle', assigned && 'on')}
-                  role="switch"
-                  aria-checked=${assigned ? 'true' : 'false'}
-                  aria-label=${`Assign ${member.display_name}`}
-                  disabled=${busy || (!assigned && member.active === false)}
-                  onClick=${() => toggleTeacher(service, member, !assigned)}
-                ><span className="toggle-knob"></span></button>` : assigned ? html`<span className="pill">Assigned</span>` : null}
-              </div>`;
+              return html`<${TeacherToggleRow}
+                key=${member.id || member.powerschool_teacher_id}
+                member=${member}
+                assigned=${Boolean(assignment)}
+                assignment=${assignment}
+                staffDirectory=${staffDirectory}
+                canWrite=${canWrite}
+                busy=${busy}
+                onToggle=${(nextOn) => toggleTeacher(service, member, nextOn)}
+              />`;
             })}
           </div>
         </div>` : null}
       </article>`;
     })}
-    <section className="legacy-services stack">
-      <h2 className="legacy-services-title">Other</h2>
-      <p className="lede">Services not tied to a school. Same tools as before.</p>
-      ${canWrite && !editingId ? html`<form className="card form" onSubmit=${saveLegacyService}>
+    <section className="schools-other stack">
+      <h2 className="schools-other-title">Other</h2>
+      <p className="lede">Services not tied to a school. Assign any synced teacher — this list is not school-filtered.</p>
+      ${canWrite && !editingId ? html`<form className="card form schools-add-service" onSubmit=${saveLegacyService}>
         <h2>Add a service</h2>
         <label className="field">
           <span className="field-label">Name</span>
@@ -1652,63 +1714,59 @@ function ServicesPanel({ event, user, onChange }) {
         </label>
         <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Adding…' : 'Add service'}</button>
       </form>` : null}
-      ${legacyServices.length === 0 ? html`<div className="card"><p>No services yet.</p><p className="lede">A service is a bookable offering, such as elementary conferences, with one slot length.</p></div>` : null}
-      ${legacyServices.map((service) => html`<article className="card" key=${service.id}>
-        ${editingId === service.id ? html`<form className="form" onSubmit=${saveLegacyService}>
-          <label className="field">
-            <span className="field-label">Name</span>
-            <input className="input" required value=${name} onInput=${(event) => setName(event.target.value)} />
-          </label>
-          <label className="field">
-            <span className="field-label">Slot length (minutes)</span>
-            <input className="input" inputMode="numeric" required value=${duration} onInput=${(event) => setDuration(event.target.value)} />
-          </label>
-          <div className="btn-row">
-            <button className="btn btn-primary" type="submit" disabled=${busy}>Save service</button>
-            <button className="btn btn-secondary" type="button" onClick=${() => setEditingId(null)}>Cancel</button>
-          </div>
-        </form>` : html`<div>
-          <h2>${service.name}</h2>
-          <p className="event-meta">${service.slot_duration_minutes} minutes</p>
-          <div className="section-gap">
-            ${service.staff.length === 0 ? html`<p className="muted">No staff assigned.</p>` : service.staff.map((member) => {
-              const roomText = serviceRoomText(member, staffDirectory);
-              return html`<div className="staff-line" key=${member.id}>
-                <div>
-                  <div className="person-name">${member.display_name}${member.active ? '' : ' (inactive)'}</div>
-                  <div className="muted">${member.email} · ${roomText}</div>
-                </div>
-                ${canWrite ? html`<button type="button" className="btn btn-secondary" onClick=${() => unassign(service.id, member.id)}>Remove</button>` : null}
-              </div>`;
+      ${legacyServices.length === 0 ? html`<div className="card schools-empty"><p>No services yet.</p><p className="lede">A service is a bookable offering, such as elementary conferences, with one slot length.</p></div>` : null}
+      ${legacyServices.map((service) => {
+        const expanded = isOtherExpanded(service.id);
+        const assignedById = new Map((service.staff || []).map((member) => [member.id, member]));
+        const teacherCount = service.staff.length;
+        return html`<article className=${cx('card schools-other-card', expanded ? 'is-expanded' : 'is-collapsed')} key=${service.id}>
+          ${editingId === service.id ? html`<form className="form schools-service-form" onSubmit=${saveLegacyService}>
+            <label className="field">
+              <span className="field-label">Name</span>
+              <input className="input" required value=${name} onInput=${(event) => setName(event.target.value)} />
+            </label>
+            <label className="field">
+              <span className="field-label">Slot length (minutes)</span>
+              <input className="input" inputMode="numeric" required value=${duration} onInput=${(event) => setDuration(event.target.value)} />
+            </label>
+            <div className="btn-row">
+              <button className="btn btn-primary" type="submit" disabled=${busy}>Save service</button>
+              <button className="btn btn-secondary" type="button" onClick=${() => setEditingId(null)}>Cancel</button>
+            </div>
+          </form>` : html`<div className="schools-other-head">
+            <button type="button" className="schools-other-toggle" aria-expanded=${expanded ? 'true' : 'false'} onClick=${() => toggleOtherExpanded(service.id)}>
+              <span className="schools-chevron-wrap" aria-hidden="true">${expanded ? html`<${IconChevronDown} />` : html`<${IconChevronRight} />`}</span>
+              <span className="schools-other-summary">
+                <span className="schools-school-name">${service.name}</span>
+                <span className="event-meta">${service.slot_duration_minutes} minutes · ${teacherCount} ${teacherCount === 1 ? 'teacher' : 'teachers'}</span>
+              </span>
+            </button>
+            ${canWrite ? html`<div className="schools-other-actions">
+              <button type="button" className="btn btn-secondary" onClick=${() => beginLegacyEdit(service)}>Edit</button>
+              <${DeleteControl} label="Delete this service?" busy=${busy} danger=${true} onConfirm=${() => removeService(service.id)} />
+            </div>` : null}
+          </div>`}
+          ${editingId !== service.id && expanded ? html`<div className="schools-teachers">
+            <div className="field-label">Teachers</div>
+            <p className="schools-caption">All synced teachers — not filtered by school.</p>
+            ${syncedTeachers.length === 0 ? html`<p className="muted">Sync teachers on the Staff screen before assigning them.</p>` : syncedTeachers.map((member) => {
+              const assignment = assignedById.get(member.id) || null;
+              return html`<${TeacherToggleRow}
+                key=${member.id}
+                member=${member}
+                assigned=${Boolean(assignment)}
+                assignment=${assignment}
+                staffDirectory=${staffDirectory}
+                canWrite=${canWrite}
+                busy=${busy}
+                onToggle=${(nextOn) => toggleTeacher(service, member, nextOn)}
+              />`;
             })}
-          </div>
-          ${canWrite ? html`<${AssignRow} service=${service} options=${synced} onAssign=${assign} />` : null}
-          ${canWrite ? html`<div className="btn-row section-gap">
-            <button type="button" className="btn btn-secondary" onClick=${() => beginLegacyEdit(service)}>Edit</button>
-            <${DeleteControl} label="Delete this service?" busy=${busy} onConfirm=${() => removeService(service.id)} />
           </div>` : null}
-        </div>`}
-      </article>`)}
-      ${canWrite && directory && synced.length === 0 ? html`<p className="muted">Sync teachers on the Staff screen before assigning them.</p>` : null}
+        </article>`;
+      })}
     </section>
   </div>`;
-}
-
-function AssignRow({ service, options, onAssign }) {
-  const assigned = new Set(service.staff.map((member) => member.id));
-  const available = options.filter((member) => !assigned.has(member.id));
-  const [staffId, setStaffId] = useState(available[0] ? String(available[0].id) : '');
-  useEffect(() => {
-    setStaffId(available[0] ? String(available[0].id) : '');
-  }, [service.id, available.map((member) => member.id).join(',')]);
-
-  if (available.length === 0) return null;
-  return html`<form className="inline-form section-gap" onSubmit=${(event) => { event.preventDefault(); onAssign(service.id, staffId); }}>
-    <select className="input" aria-label=${`Assign staff to ${service.name}`} value=${staffId} onChange=${(event) => setStaffId(event.target.value)}>
-      ${available.map((member) => html`<option key=${member.id} value=${member.id}>${member.display_name}${member.powerschool_room ? ` · Room ${member.powerschool_room}` : ''}</option>`)}
-    </select>
-    <button className="btn btn-secondary" type="submit">Assign</button>
-  </form>`;
 }
 
 function AvailabilityPanel({ event, user, timeZone }) {
