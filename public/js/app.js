@@ -10,6 +10,24 @@ const ROLE_LABEL = {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+/** Default hash after sign-in or role switch. Real routes only. */
+function defaultHashForRole(role) {
+  if (role === 'teacher') return '#/agenda';
+  // it_admin and front_office both land on Conferences; FO booking reports are
+  // per-event at #/events/:id/bookings (no top-level bookings hash).
+  return '#/events';
+}
+
+function userRoles(user) {
+  if (Array.isArray(user?.roles) && user.roles.length) return user.roles;
+  const role = user?.activeRole || user?.role;
+  return role ? [role] : [];
+}
+
+function activeRoleOf(user) {
+  return user?.activeRole || user?.role;
+}
+
 function cx(...parts) {
   return parts.filter(Boolean).join(' ');
 }
@@ -274,12 +292,33 @@ function IconChevronRight() {
 }
 
 function Shell({ user, active, onSignOut, children }) {
-  const home = user.role === 'teacher' ? '#/agenda' : '#/events';
+  const role = activeRoleOf(user);
+  const roles = userRoles(user);
+  const multiRole = roles.length > 1;
+  const home = defaultHashForRole(role);
+  const [switchBusy, setSwitchBusy] = useState(false);
+  const [switchError, setSwitchError] = useState('');
+
+  async function switchRole(nextRole) {
+    if (!nextRole || nextRole === role || switchBusy) return;
+    setSwitchBusy(true);
+    setSwitchError('');
+    try {
+      const data = await api('/auth/switch-role', { method: 'POST', body: { role: nextRole } });
+      window.dispatchEvent(new CustomEvent('ptc-role-switched', { detail: data }));
+      window.location.hash = defaultHashForRole(data.user?.activeRole || data.user?.role || nextRole);
+    } catch (err) {
+      setSwitchError(err.message || 'Could not switch role');
+    } finally {
+      setSwitchBusy(false);
+    }
+  }
+
   return html`<div className="admin-shell">
     <header className="app-header admin-header">
       <${Logo} href=${home} />
       <nav className="nav admin-nav" aria-label="Sections">
-        ${user.role === 'teacher' ? html`<a href="#/agenda" className=${active === 'agenda' ? 'active' : ''} aria-current=${active === 'agenda' ? 'page' : undefined}>
+        ${role === 'teacher' ? html`<a href="#/agenda" className=${active === 'agenda' ? 'active' : ''} aria-current=${active === 'agenda' ? 'page' : undefined}>
           <${IconAgenda} /> Agenda
         </a>` : null}
         <a href="#/events" className=${active === 'events' ? 'active' : ''} aria-current=${active === 'events' ? 'page' : undefined}>
@@ -288,10 +327,10 @@ function Shell({ user, active, onSignOut, children }) {
         <a href="#/staff" className=${active === 'staff' ? 'active' : ''} aria-current=${active === 'staff' ? 'page' : undefined}>
           <${IconPeople} /> Staff
         </a>
-        ${user.role === 'it_admin' ? html`<a href="#/landing-page" className=${active === 'landing-page' ? 'active' : ''} aria-current=${active === 'landing-page' ? 'page' : undefined}>
+        ${role === 'it_admin' ? html`<a href="#/landing-page" className=${active === 'landing-page' ? 'active' : ''} aria-current=${active === 'landing-page' ? 'page' : undefined}>
           <${IconHome} /> Landing page
         </a>` : null}
-        ${user.role === 'it_admin' || user.role === 'front_office' ? html`<a href="#/notifications" className=${active === 'notifications' ? 'active' : ''} aria-current=${active === 'notifications' ? 'page' : undefined}>
+        ${role === 'it_admin' || role === 'front_office' ? html`<a href="#/notifications" className=${active === 'notifications' ? 'active' : ''} aria-current=${active === 'notifications' ? 'page' : undefined}>
           <${IconMail} /> Notification issues
         </a>` : null}
       </nav>
@@ -299,7 +338,20 @@ function Shell({ user, active, onSignOut, children }) {
         <span className="admin-avatar" aria-hidden="true">${emailInitials(user.email)}</span>
         <div className="who">
           <div className="who-email">${user.email}</div>
-          <div className="who-role">${ROLE_LABEL[user.role] || user.role}</div>
+          ${multiRole ? html`<div className="who-role who-role-switcher">
+            <span className="role-switcher-label">Viewing as</span>
+            <div className="staff-status-seg role-switcher" role="group" aria-label="Viewing as">
+              ${roles.map((entry) => html`<button
+                type="button"
+                key=${entry}
+                className=${cx('staff-seg', entry === role && 'is-selected')}
+                aria-pressed=${entry === role ? 'true' : 'false'}
+                disabled=${switchBusy}
+                onClick=${() => switchRole(entry)}
+              >${ROLE_LABEL[entry] || entry}</button>`)}
+            </div>
+          </div>` : html`<div className="who-role">${ROLE_LABEL[role] || role}</div>`}
+          ${switchError ? html`<div className="who-role-error" role="status">${switchError}</div>` : null}
         </div>
         <button type="button" className="btn btn-secondary" onClick=${onSignOut}>Sign out</button>
       </div>
@@ -337,7 +389,7 @@ function SignIn({ auth, notice, onSignedIn }) {
     try {
       const data = await api('/auth/session', { method: 'POST', body: { email } });
       onSignedIn(data);
-      window.location.hash = data.user?.role === 'teacher' ? '#/agenda' : '#/events';
+      window.location.hash = defaultHashForRole(data.user?.role);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -3425,7 +3477,14 @@ function App() {
 
   useEffect(() => {
     const onUnauthorized = () => setUser(null);
+    const onRoleSwitched = (event) => {
+      const data = event.detail || {};
+      if (data.user) setUser(data.user);
+      if (data.time_zone) setTimeZone(data.time_zone);
+      if (data.auth) setAuth(data.auth);
+    };
     window.addEventListener('ptc-unauthorized', onUnauthorized);
+    window.addEventListener('ptc-role-switched', onRoleSwitched);
     api('/auth/session', { allow401: true })
       .then((data) => {
         setUser(data.user);
@@ -3436,7 +3495,10 @@ function App() {
         setUser(null);
         if (error.payload?.auth) setAuth(error.payload.auth);
       });
-    return () => window.removeEventListener('ptc-unauthorized', onUnauthorized);
+    return () => {
+      window.removeEventListener('ptc-unauthorized', onUnauthorized);
+      window.removeEventListener('ptc-role-switched', onRoleSwitched);
+    };
   }, []);
 
   useEffect(() => {

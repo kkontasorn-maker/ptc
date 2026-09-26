@@ -759,6 +759,48 @@ select.input {
   color: var(--admin-text-secondary);
 }
 
+.admin-header-user .who-role-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-header-user .role-switcher-label {
+  color: var(--admin-text-secondary);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.admin-header-user .role-switcher.staff-status-seg {
+  padding: 2px;
+  gap: 2px;
+  border-radius: 8px;
+  background: var(--admin-bg, #F3F3F4);
+  border-color: var(--admin-border, #E2E2E4);
+}
+
+.admin-header-user .role-switcher .staff-seg {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--admin-text-secondary, #64676A);
+}
+
+.admin-header-user .role-switcher .staff-seg.is-selected {
+  background: var(--admin-primary, #8C0E06);
+  color: #FFFFFF;
+}
+
+.admin-header-user .who-role-error {
+  margin-top: 2px;
+  color: var(--admin-primary, #8C0E06);
+  font-size: 11px;
+  text-align: right;
+}
+
 .admin-header-user .btn-secondary {
   border-color: var(--admin-border);
   border-radius: 10px;
