@@ -2030,6 +2030,652 @@ a.card.staff-row:focus-visible {
   .landing-tile { padding: 26px 20px; }
 }
 
+/* —— Parent verify (scoped; does not alter admin chrome) —— */
+.verify-page {
+  --verify-primary: #8C0E06;
+  --verify-secondary: #225085;
+  --verify-body: #141413;
+  --verify-text-secondary: #64676A;
+  --verify-muted: #BCBCBC;
+  --verify-bg: #F6F6F4;
+  --verify-card: #FFFFFF;
+  --verify-border: #E4E4E1;
+  --verify-success-bg: #EAF3DE;
+  --verify-success-text: #3B6D11;
+  --verify-error-bg: #FCEBEB;
+  --verify-font-display: "Archivo", "Segoe UI", sans-serif;
+  --verify-font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --verify-shadow: 0 8px 28px rgba(20, 20, 19, 0.06);
+  min-height: 100vh;
+  background: var(--verify-bg);
+  color: var(--verify-body);
+  font-family: var(--verify-font-body);
+}
+
+.verify-header.app-header {
+  min-height: 68px;
+  padding: 0 32px;
+  background: var(--verify-card);
+  border-bottom: 1px solid var(--verify-border);
+}
+
+.verify-page .logo:focus-visible {
+  outline: 2px solid var(--verify-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.verify-page .wordmark-line {
+  color: var(--verify-body);
+  font-family: var(--verify-font-display);
+  font-weight: 700;
+}
+
+.verify-page .wordmark-sub {
+  color: var(--verify-text-secondary);
+  font-family: var(--verify-font-body);
+}
+
+.verify-main {
+  max-width: 560px;
+  padding-top: 36px;
+}
+
+.verify-title {
+  font-family: var(--verify-font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--verify-body);
+  line-height: 1.15;
+}
+
+.verify-head .lede {
+  color: var(--verify-text-secondary);
+}
+
+.verify-card.card {
+  border: 1px solid var(--verify-border);
+  border-radius: 16px;
+  box-shadow: var(--verify-shadow);
+  background: var(--verify-card);
+  padding: 20px 22px;
+}
+
+.verify-banner {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.verify-banner-error {
+  background: var(--verify-error-bg);
+  color: var(--verify-primary);
+  border: 1px solid #F0C9C9;
+}
+
+.verify-cta.btn-primary {
+  border-radius: 10px;
+  background: var(--verify-primary);
+  border-color: var(--verify-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.verify-cta.btn-primary:hover:not(:disabled) {
+  background: #791F1F;
+  border-color: #791F1F;
+}
+
+.verify-cta:focus-visible {
+  outline: 2px solid var(--verify-primary);
+  outline-offset: 2px;
+}
+
+.verify-secondary.btn-secondary {
+  border-radius: 10px;
+  border: 1px solid var(--verify-border);
+  background: transparent;
+  color: var(--verify-body);
+}
+
+.verify-secondary.btn-secondary:hover:not(:disabled) {
+  background: var(--verify-bg);
+}
+
+.verify-success.success-note {
+  background: var(--verify-success-bg);
+  color: var(--verify-success-text);
+  font-weight: 600;
+}
+
+.verify-child-row {
+  border-top-color: var(--verify-border);
+}
+
+.verify-child-row .data-label { color: var(--verify-text-secondary); }
+.verify-child-row .data-value { color: var(--verify-body); font-weight: 500; }
+
+.verify-footer-link a {
+  color: var(--verify-secondary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.verify-footer-link a:hover { text-decoration: underline; }
+
+.verify-page .field-label { color: var(--verify-text-secondary); }
+.verify-page .muted { color: var(--verify-muted); }
+.verify-page .input {
+  border-color: var(--verify-border);
+  border-radius: 10px;
+}
+
+.verify-page .input:focus-visible {
+  outline: 2px solid var(--verify-secondary);
+  outline-offset: 1px;
+}
+
+/* —— Parent booking grid (scoped) —— */
+.parent-book {
+  --parent-primary: #8C0E06;
+  --parent-secondary: #225085;
+  --parent-body: #141413;
+  --parent-text-secondary: #64676A;
+  --parent-muted: #BCBCBC;
+  --parent-bg: #F6F6F4;
+  --parent-card: #FFFFFF;
+  --parent-border: #E4E4E1;
+  --parent-success-bg: #EAF3DE;
+  --parent-success-text: #3B6D11;
+  --parent-error-bg: #FCEBEB;
+  --parent-advisory-bg: #FBF3E0;
+  --parent-advisory-text: #8A6116;
+  --parent-font-display: "Archivo", "Segoe UI", sans-serif;
+  --parent-font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --parent-shadow: 0 8px 28px rgba(20, 20, 19, 0.06);
+  --parent-shadow-lift: 0 12px 32px rgba(20, 20, 19, 0.1);
+  min-height: 100vh;
+  background: var(--parent-bg);
+  color: var(--parent-body);
+  font-family: var(--parent-font-body);
+}
+
+.parent-header.app-header {
+  min-height: 68px;
+  padding: 0 32px;
+  background: var(--parent-card);
+  border-bottom: 1px solid var(--parent-border);
+}
+
+.parent-book .logo:focus-visible {
+  outline: 2px solid var(--parent-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.parent-book .wordmark-line {
+  color: var(--parent-body);
+  font-family: var(--parent-font-display);
+  font-weight: 700;
+}
+
+.parent-book .wordmark-sub {
+  color: var(--parent-text-secondary);
+  font-family: var(--parent-font-body);
+}
+
+.parent-title {
+  font-family: var(--parent-font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--parent-body);
+  line-height: 1.15;
+}
+
+.parent-head .lede,
+.parent-book .lede {
+  color: var(--parent-text-secondary);
+}
+
+.parent-banner {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.parent-banner-error {
+  background: var(--parent-error-bg);
+  color: var(--parent-primary);
+  border: 1px solid #F0C9C9;
+}
+
+.parent-lock.lock-row {
+  background: var(--parent-advisory-bg);
+  color: var(--parent-advisory-text);
+  border: 1px solid #EAD9A8;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.parent-book .lock-row {
+  background: var(--parent-advisory-bg);
+  color: var(--parent-advisory-text);
+  border: 1px solid #EAD9A8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+.parent-card.card,
+.parent-teacher-card.card,
+.parent-day-so-far.card {
+  border: 1px solid var(--parent-border);
+  border-radius: 16px;
+  background: var(--parent-card);
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.03);
+}
+
+.parent-teacher-card.card {
+  padding: 18px 18px 16px;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.parent-teacher-card.card:hover {
+  box-shadow: var(--parent-shadow);
+  transform: translateY(-1px);
+}
+
+.parent-teacher-name {
+  font-family: var(--parent-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--parent-body);
+}
+
+.parent-teacher-room {
+  margin-top: 2px;
+  color: var(--parent-text-secondary);
+  font-size: 14px;
+}
+
+.parent-child-tabs {
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.parent-child-tab.child-tab {
+  border: 1px solid var(--parent-border);
+  border-radius: 999px;
+  background: var(--parent-card);
+  color: var(--parent-text-secondary);
+  font-weight: 500;
+  min-height: 42px;
+  padding: 8px 16px;
+}
+
+.parent-child-tab.child-tab[aria-selected="true"] {
+  background: #FCEBEB;
+  border-color: transparent;
+  color: var(--parent-primary);
+  font-weight: 700;
+}
+
+.parent-slot.slot-btn {
+  border: 1px solid var(--parent-border);
+  border-radius: 10px;
+  background: var(--parent-card);
+  color: var(--parent-body);
+  font-weight: 500;
+  min-height: 44px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.parent-slot.slot-btn:hover:not(:disabled):not(.taken) {
+  border-color: var(--parent-secondary);
+  color: var(--parent-secondary);
+}
+
+.parent-slot.slot-btn.selected {
+  background: var(--parent-primary);
+  border-color: var(--parent-primary);
+  color: #FFFFFF;
+}
+
+.parent-slot.slot-btn.taken,
+.parent-slot.slot-btn:disabled {
+  color: var(--parent-muted);
+  background: var(--parent-bg);
+  border-color: transparent;
+  text-decoration: line-through;
+}
+
+.parent-day-so-far {
+  box-shadow: var(--parent-shadow-lift);
+  padding: 18px 18px 16px;
+}
+
+.parent-side-title {
+  font-family: var(--parent-font-display);
+  font-weight: 700;
+  color: var(--parent-body);
+  margin-bottom: 8px;
+}
+
+.parent-pick-row {
+  border-top-color: var(--parent-border);
+}
+
+.parent-pick-row.is-selected .data-value {
+  font-weight: 600;
+  color: var(--parent-body);
+}
+
+.parent-cta.btn-primary {
+  border-radius: 10px;
+  background: var(--parent-primary);
+  border-color: var(--parent-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.parent-cta.btn-primary:hover:not(:disabled) {
+  background: #791F1F;
+  border-color: #791F1F;
+}
+
+.parent-cta:focus-visible {
+  outline: 2px solid var(--parent-primary);
+  outline-offset: 2px;
+}
+
+.parent-secondary.btn-secondary {
+  border-radius: 10px;
+  border: 1px solid var(--parent-border);
+  background: transparent;
+  color: var(--parent-body);
+}
+
+.parent-secondary.btn-secondary:hover:not(:disabled) {
+  background: var(--parent-bg);
+}
+
+.parent-empty,
+.parent-state {
+  box-shadow: var(--parent-shadow);
+  text-align: left;
+}
+
+.parent-book .field-label { color: var(--parent-text-secondary); }
+.parent-book .muted { color: var(--parent-muted); }
+.parent-book .input {
+  border-color: var(--parent-border);
+  border-radius: 10px;
+}
+
+.parent-book .text-button {
+  color: var(--parent-secondary);
+}
+
+.parent-book .success-note {
+  background: var(--parent-success-bg);
+  color: var(--parent-success-text);
+  font-weight: 600;
+}
+
+/* —— Teacher agenda / breaks (scoped under admin-shell) —— */
+.teacher-agenda {
+  --teacher-primary: #8C0E06;
+  --teacher-secondary: #225085;
+  --teacher-body: #141413;
+  --teacher-text-secondary: #64676A;
+  --teacher-muted: #BCBCBC;
+  --teacher-bg: #F6F6F4;
+  --teacher-card: #FFFFFF;
+  --teacher-border: #E4E4E1;
+  --teacher-success-bg: #EAF3DE;
+  --teacher-success-text: #3B6D11;
+  --teacher-error-bg: #FCEBEB;
+  --teacher-advisory-bg: #FBF3E0;
+  --teacher-advisory-text: #8A6116;
+  --teacher-font-display: "Archivo", "Segoe UI", sans-serif;
+  --teacher-font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --teacher-shadow: 0 8px 28px rgba(20, 20, 19, 0.06);
+  --teacher-shadow-lift: 0 12px 32px rgba(20, 20, 19, 0.1);
+  font-family: var(--teacher-font-body);
+  color: var(--teacher-body);
+}
+
+.teacher-title {
+  font-family: var(--teacher-font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--teacher-body);
+  line-height: 1.15;
+}
+
+.teacher-head .lede,
+.teacher-agenda .lede {
+  color: var(--teacher-text-secondary);
+}
+
+.teacher-back.back {
+  color: var(--teacher-text-secondary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.teacher-back.back:hover { color: var(--teacher-body); }
+
+.teacher-banner {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.teacher-banner-error {
+  background: var(--teacher-error-bg);
+  color: var(--teacher-primary);
+  border: 1px solid #F0C9C9;
+}
+
+.teacher-banner-advisory {
+  background: var(--teacher-advisory-bg);
+  color: var(--teacher-advisory-text);
+  border: 1px solid #EAD9A8;
+}
+
+.teacher-card.card,
+.teacher-side.card {
+  border: 1px solid var(--teacher-border);
+  border-radius: 16px;
+  background: var(--teacher-card);
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.03);
+}
+
+.teacher-event-row.event-card {
+  border: 1px solid var(--teacher-border);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.03);
+  padding: 16px 18px;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.teacher-event-row.event-card:hover {
+  box-shadow: var(--teacher-shadow-lift);
+  transform: translateY(-1px);
+}
+
+.teacher-event-badge.icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #EAF1F8;
+  color: var(--teacher-secondary);
+}
+
+.teacher-event-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.teacher-event-row .event-title {
+  font-weight: 600;
+  color: var(--teacher-body);
+}
+
+.teacher-event-row .event-meta {
+  color: var(--teacher-text-secondary);
+}
+
+.teacher-list { gap: 12px; }
+
+.teacher-side {
+  box-shadow: var(--teacher-shadow);
+  padding: 18px;
+}
+
+.teacher-side-title {
+  font-family: var(--teacher-font-display);
+  font-weight: 700;
+  color: var(--teacher-body);
+}
+
+.teacher-cta.btn-primary {
+  border-radius: 10px;
+  background: var(--teacher-primary);
+  border-color: var(--teacher-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.teacher-cta.btn-primary:hover:not(:disabled) {
+  background: #791F1F;
+  border-color: #791F1F;
+}
+
+.teacher-cta:focus-visible {
+  outline: 2px solid var(--teacher-primary);
+  outline-offset: 2px;
+}
+
+.teacher-success.success-note {
+  background: var(--teacher-success-bg);
+  color: var(--teacher-success-text);
+  font-weight: 600;
+}
+
+.teacher-confirm {
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--teacher-border);
+}
+
+.teacher-agenda .agenda-calendar {
+  border: 1px solid var(--teacher-border);
+  border-radius: 16px;
+  background: var(--teacher-card);
+  box-shadow: var(--teacher-shadow);
+  padding: 12px 10px 8px;
+  overflow: hidden;
+}
+
+.teacher-agenda .agenda-calendar .fc {
+  font-family: var(--teacher-font-body);
+}
+
+.teacher-agenda .agenda-calendar .fc-timegrid-slot-label,
+.teacher-agenda .agenda-calendar .fc-col-header-cell-cushion,
+.teacher-agenda .agenda-calendar .fc-timegrid-axis {
+  color: var(--teacher-text-secondary);
+}
+
+.teacher-agenda .agenda-calendar .fc-event.fc-booking {
+  background: #EAF1F8;
+  border: 1px solid #C5D6EA;
+  border-radius: 8px;
+}
+
+.teacher-agenda .agenda-calendar .fc-event.fc-booking .fc-event-main {
+  color: var(--teacher-secondary);
+  font-weight: 600;
+}
+
+.teacher-agenda .agenda-calendar .fc-event.fc-bookable {
+  background: var(--teacher-bg);
+  border: 1px dashed var(--teacher-border);
+  border-radius: 8px;
+}
+
+.teacher-agenda .agenda-calendar .fc-event.fc-bookable .fc-event-main {
+  color: var(--teacher-text-secondary);
+}
+
+.teacher-agenda .agenda-calendar .fc-event.fc-break {
+  background: #FCEBEB;
+  border: 1px solid #F0C9C9;
+  border-radius: 8px;
+}
+
+.teacher-agenda .agenda-calendar .fc-event.fc-break .fc-event-main {
+  color: var(--teacher-primary);
+  font-weight: 600;
+}
+
+.teacher-agenda .agenda-calendar.is-locked .fc-event,
+.teacher-agenda .agenda-calendar.is-locked .fc-event .fc-event-main {
+  color: var(--teacher-muted);
+}
+
+.teacher-agenda .text-button {
+  color: var(--teacher-secondary);
+}
+
+@media (max-width: 640px) {
+  .verify-header.app-header,
+  .parent-header.app-header {
+    padding: 10px 16px;
+    min-height: 64px;
+  }
+
+  .verify-main,
+  .parent-main {
+    padding: 24px 16px 72px;
+  }
+
+  .verify-title,
+  .parent-title,
+  .teacher-title {
+    font-size: 26px;
+  }
+
+  .parent-teacher-grid.teacher-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .parent-slot-grid.slot-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .parent-day-so-far.day-so-far {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    border-radius: 14px;
+  }
+
+  .teacher-agenda .agenda-calendar {
+    padding: 8px 4px;
+  }
+}
+
 .landing-editor-card-head {
   display: flex;
   align-items: flex-start;

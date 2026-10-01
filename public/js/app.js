@@ -545,40 +545,46 @@ function VerifyEmailScreen({ returnTo = '', initialEmail = '' }) {
 
   const childRows = children || [];
 
-  return html`<div>
-    <header className="app-header"><${Logo} href="#/verify" /></header>
-    <main className="main">
-      <div className="signin">
-        <div className="screen-head">
-          <div>
-            <h1>Verify your email</h1>
-            <p className="lede">We'll match this address to your children in the school records. You can do this before conferences open.</p>
+  return html`<div className="parent-shell parent-verify-page">
+    <header className="app-header parent-header">
+      <${Logo} href="#/verify" />
+      <p className="parent-header-tagline">Parent-Teacher Conferences</p>
+    </header>
+    <main className="main parent-main">
+      <div className="parent-verify">
+        <section className="parent-hero">
+          <p className="parent-eyebrow">Parents</p>
+          <h1 className="parent-title">Verify your email</h1>
+          <p className="lede parent-lede">We'll match this address to your children in the school records. You can do this before conferences open.</p>
+          <div className="parent-accent-divider" aria-hidden="true">
+            <span className="parent-accent-bar parent-accent-bar--primary"></span>
+            <span className="parent-accent-bar parent-accent-bar--secondary"></span>
           </div>
-        </div>
-        <div className="stack">
-          ${error ? html`<div className="note">${error}</div>` : null}
-          ${step === 'email' ? html`<form className="card form" onSubmit=${continueEmail}>
+        </section>
+        <div className="stack parent-stack">
+          ${error ? html`<div className="parent-banner parent-banner-error" role="alert">${error}</div>` : null}
+          ${step === 'email' ? html`<form className="card form parent-card" onSubmit=${continueEmail}>
             <label className="field">
               <span className="field-label">Email</span>
-              <input className="input" type="email" name="email" autoComplete="email" required value=${email} placeholder="name@example.com" onInput=${(event) => setEmail(event.target.value)} />
+              <input className="input parent-input" type="email" name="email" autoComplete="email" required value=${email} placeholder="name@example.com" onInput=${(event) => setEmail(event.target.value)} />
             </label>
-            <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Checking…' : 'Continue'}</button>
+            <button className="btn btn-primary parent-cta" type="submit" disabled=${busy}>${busy ? 'Checking…' : 'Continue'}</button>
           </form>` : null}
-          ${step === 'code' ? html`<form className="card form" onSubmit=${confirmCode}>
-            <p className="muted">Enter the 6-digit code sent to ${email.trim()}. It expires in 10 minutes.</p>
+          ${step === 'code' ? html`<form className="card form parent-card" onSubmit=${confirmCode}>
+            <p className="muted parent-muted">Enter the 6-digit code sent to ${email.trim()}. It expires in 10 minutes.</p>
             <label className="field">
               <span className="field-label">Code</span>
-              <input className="input" name="code" inputMode="numeric" autoComplete="one-time-code" required maxLength="6" pattern="[0-9]{6}" value=${code} onInput=${(event) => setCode(event.target.value)} />
+              <input className="input parent-input" name="code" inputMode="numeric" autoComplete="one-time-code" required maxLength="6" pattern="[0-9]{6}" value=${code} onInput=${(event) => setCode(event.target.value)} />
               ${devCode ? html`<span className="field-hint">Mail is not configured on this server. Your code is ${devCode}.</span>` : null}
             </label>
-            <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Checking…' : 'Verify'}</button>
-            <button className="btn btn-secondary" type="button" onClick=${reset}>Use a different email</button>
+            <button className="btn btn-primary parent-cta" type="submit" disabled=${busy}>${busy ? 'Checking…' : 'Verify'}</button>
+            <button className="btn btn-secondary parent-secondary" type="button" onClick=${reset}>Use a different email</button>
           </form>` : null}
-          ${step === 'contact' ? html`<form className="card form" onSubmit=${saveContact}>
-            <p className="muted">If email does not reach you, front office can use another way to get in touch. This is optional.</p>
+          ${step === 'contact' ? html`<form className="card form parent-card" onSubmit=${saveContact}>
+            <p className="muted parent-muted">If email does not reach you, front office can use another way to get in touch. This is optional.</p>
             <label className="field">
               <span className="field-label">How else can we reach you?</span>
-              <select className="input" value=${contactType} onChange=${(event) => setContactType(event.target.value)}>
+              <select className="input parent-input" value=${contactType} onChange=${(event) => setContactType(event.target.value)}>
                 <option value="line">LINE</option>
                 <option value="phone">Phone</option>
                 <option value="wechat">WeChat</option>
@@ -586,25 +592,25 @@ function VerifyEmailScreen({ returnTo = '', initialEmail = '' }) {
             </label>
             <label className="field">
               <span className="field-label">${contactType === 'phone' ? 'Phone number' : contactType === 'wechat' ? 'WeChat ID' : 'LINE ID'}</span>
-              <input className="input" name="fallback" value=${contactValue} onInput=${(event) => setContactValue(event.target.value)} />
+              <input className="input parent-input" name="fallback" value=${contactValue} onInput=${(event) => setContactValue(event.target.value)} />
             </label>
-            <button className="btn btn-primary" type="submit" disabled=${busy}>${busy ? 'Saving…' : 'Save contact'}</button>
-            <button className="btn btn-secondary" type="button" onClick=${skipContact}>Skip</button>
+            <button className="btn btn-primary parent-cta" type="submit" disabled=${busy}>${busy ? 'Saving…' : 'Save contact'}</button>
+            <button className="btn btn-secondary parent-secondary" type="button" onClick=${skipContact}>Skip</button>
           </form>` : null}
-          ${step === 'done' && unmatched ? html`<div className="card">
+          ${step === 'done' && unmatched ? html`<div className="card parent-card parent-empty">
             <p>We couldn't match this email to a student. Please contact the front office.</p>
-            <button className="btn btn-secondary section-gap" type="button" onClick=${reset}>Use a different email</button>
+            <button className="btn btn-secondary parent-secondary section-gap" type="button" onClick=${reset}>Use a different email</button>
           </div>` : null}
-          ${step === 'done' && !unmatched ? html`<div className="card">
-            <div><span className="success-note">We found your children</span></div>
-            ${childRows.map((child) => html`<div className="data-row" key=${child.student_powerschool_id}>
+          ${step === 'done' && !unmatched ? html`<div className="card parent-card">
+            <div className="parent-banner parent-banner-success" role="status">We found your children</div>
+            ${childRows.map((child) => html`<div className="data-row parent-pick-row" key=${child.student_powerschool_id}>
               <div className="data-label">${child.grade ? `Grade ${child.grade}` : 'Grade not set'}</div>
               <div className="data-value">${child.name}${child.nickname ? ` (${child.nickname})` : ''}</div>
             </div>`)}
-            ${returnTo ? html`<a className="btn btn-primary section-gap" href=${`#/${returnTo}`}>Book conferences</a>` : null}
-            <button className="btn btn-secondary section-gap" type="button" onClick=${reset}>Use a different email</button>
+            ${returnTo ? html`<a className="btn btn-primary parent-cta section-gap" href=${`#/${returnTo}`}>Book conferences</a>` : null}
+            <button className="btn btn-secondary parent-secondary section-gap" type="button" onClick=${reset}>Use a different email</button>
           </div>` : null}
-          <p className="muted quiet-link"><a href="#/sign-in">Staff sign-in</a></p>
+          <p className="muted quiet-link parent-quiet-link"><a href="#/sign-in">Staff sign-in</a></p>
         </div>
       </div>
     </main>
@@ -837,75 +843,86 @@ function BookingScreen({ eventId }) {
   }
 
   if (!id) {
-    return html`<div>
-      <header className="app-header"><${Logo} href="#/verify" /></header>
-      <main className="main"><div className="note">This conference is not open.</div></main>
+    return html`<div className="parent-shell parent-book">
+      <header className="app-header parent-header">
+        <${Logo} href="#/verify" />
+        <p className="parent-header-tagline">Parent-Teacher Conferences</p>
+      </header>
+      <main className="main parent-main"><div className="parent-banner parent-banner-error" role="alert">This conference is not open.</div></main>
     </div>`;
   }
 
-  return html`<div>
-    <header className="app-header"><${Logo} href="#/verify" /></header>
-    <main className="main book-main">
-      <div className="screen-head">
-        <div>
-          <h1>Book a conference</h1>
-          <p className="lede">Choose a time with each teacher. One visit is confirmed together.</p>
+  return html`<div className="parent-shell parent-book">
+    <header className="app-header parent-header">
+      <${Logo} href="#/verify" />
+      <p className="parent-header-tagline">Parent-Teacher Conferences</p>
+    </header>
+    <main className="main book-main parent-main">
+      <section className="parent-hero parent-hero--book">
+        <p className="parent-eyebrow">Parents</p>
+        <h1 className="parent-title">Book a conference</h1>
+        <p className="lede parent-lede">Choose a time with each teacher. One visit is confirmed together.</p>
+        <div className="parent-accent-divider" aria-hidden="true">
+          <span className="parent-accent-bar parent-accent-bar--primary"></span>
+          <span className="parent-accent-bar parent-accent-bar--secondary"></span>
         </div>
-      </div>
-      ${error ? html`<div className="note section-gap">${error}</div>` : null}
-      ${locked ? html`<div className="lock-row section-gap">${html`<${IconLock} />`}<span>${locked}</span></div>` : null}
-      ${phase === 'email' ? html`<form className="card form" onSubmit=${(event) => { event.preventDefault(); const address = email.trim(); try { sessionStorage.setItem('ptcParentEmail', address); } catch { /* private mode */ } load(address); }}>
+      </section>
+      ${error ? html`<div className="parent-banner parent-banner-error section-gap" role="alert">${error}</div>` : null}
+      ${locked ? html`<div className="lock-row parent-lock section-gap">${html`<${IconLock} />`}<span>${locked}</span></div>` : null}
+      ${phase === 'email' ? html`<form className="card form parent-card" onSubmit=${(event) => { event.preventDefault(); const address = email.trim(); try { sessionStorage.setItem('ptcParentEmail', address); } catch { /* private mode */ } load(address); }}>
         <label className="field">
           <span className="field-label">Email</span>
-          <input className="input" type="email" required value=${email} placeholder="name@example.com" onInput=${(event) => setEmail(event.target.value)} />
+          <input className="input parent-input" type="email" required value=${email} placeholder="name@example.com" onInput=${(event) => setEmail(event.target.value)} />
         </label>
-        <button className="btn btn-primary" type="submit">Continue</button>
+        <button className="btn btn-primary parent-cta" type="submit">Continue</button>
       </form>` : null}
-      ${phase === 'loading' ? html`<p className="muted">Loading the schedule…</p>` : null}
-      ${phase === 'unmatched' ? html`<div className="card"><p>We couldn't match this email to a student. Please contact the front office.</p></div>` : null}
-      ${phase === 'error' ? html`<p className="muted quiet-link"><a href="#/verify">Verify your email</a></p>` : null}
-      ${phase === 'cancelled' ? html`<div className="card"><p>This visit was cancelled.</p><button className="btn btn-secondary section-gap" type="button" onClick=${() => { setPhase('grid'); setError(''); }}>Choose new times</button></div>` : null}
-      ${phase === 'grid' && view ? html`<div className="book-layout">
+      ${phase === 'loading' ? html`<div className="card parent-card parent-state"><p className="muted parent-muted">Loading the schedule…</p></div>` : null}
+      ${phase === 'unmatched' ? html`<div className="card parent-card parent-empty"><p>We couldn't match this email to a student. Please contact the front office.</p></div>` : null}
+      ${phase === 'error' ? html`<div className="card parent-card parent-empty"><p className="muted quiet-link parent-quiet-link"><a href="#/verify">Verify your email</a></p></div>` : null}
+      ${phase === 'cancelled' ? html`<div className="card parent-card parent-empty"><p>This visit was cancelled.</p><button className="btn btn-secondary parent-secondary section-gap" type="button" onClick=${() => { setPhase('grid'); setError(''); }}>Choose new times</button></div>` : null}
+      ${phase === 'grid' && view ? html`<div className="book-layout parent-layout">
         <div>
-          <div className="child-tabs" role="tablist" aria-label="Children">
-            ${(view.children || []).map((person) => html`<button type="button" role="tab" key=${person.student_powerschool_id} className="child-tab" aria-selected=${person.student_powerschool_id === child?.student_powerschool_id ? 'true' : 'false'} onClick=${() => setChildId(person.student_powerschool_id)}>
+          <div className="child-tabs parent-child-tabs" role="tablist" aria-label="Children">
+            ${(view.children || []).map((person) => html`<button type="button" role="tab" key=${person.student_powerschool_id} className=${cx('child-tab', 'parent-child-tab', person.student_powerschool_id === child?.student_powerschool_id && 'is-selected')} aria-selected=${person.student_powerschool_id === child?.student_powerschool_id ? 'true' : 'false'} onClick=${() => setChildId(person.student_powerschool_id)}>
               ${person.name}
             </button>`)}
           </div>
-          ${child && !(child.teachers || []).length ? html`<div className="card"><p>No teachers on this conference for ${child.name}.</p></div>` : null}
-          <div className="teacher-grid">
-            ${(child?.teachers || []).map((teacher) => html`<article className="card teacher-card" key=${`${teacher.staff_id}-${teacher.service_id}`}>
-              <h2>${teacher.display_name}</h2>
-              <p className="muted">${teacher.room ? `Room ${teacher.room}` : 'Room not set'}</p>
+          ${child && !(child.teachers || []).length ? html`<div className="card parent-card parent-empty"><p>No teachers on this conference for ${child.name}.</p></div>` : null}
+          <div className="teacher-grid parent-teacher-grid">
+            ${(child?.teachers || []).map((teacher) => html`<article className="card teacher-card parent-teacher-card" key=${`${teacher.staff_id}-${teacher.service_id}`}>
+              <div className="parent-teacher-head">
+                <h2 className="parent-teacher-name">${teacher.display_name}</h2>
+                <span className="parent-room-pill">${teacher.room ? `Room ${teacher.room}` : 'Room not set'}</span>
+              </div>
               ${teacher.booked_by_other_guardian ? html`<${QuietLock} message=${`Already booked — ${teacher.booked_by_other_guardian.relationship}, ${formatClock(teacher.booked_by_other_guardian.start_time)}.`} />` : null}
-              <div className="slot-grid">
+              <div className="slot-grid parent-slot-grid">
                 ${teacher.slots.map((slot) => {
                   const key = `${child.student_powerschool_id}|${teacher.staff_id}|${teacher.service_id}|${slot.start_time}`;
                   const isSelected = selected.some((item) => item.key === key);
                   const taken = !slot.available;
-                  return html`<button type="button" key=${slot.start_time} className=${cx('slot-btn', isSelected && 'selected', taken && 'taken')} disabled=${taken || Boolean(locked)} aria-pressed=${isSelected ? 'true' : 'false'} onClick=${() => toggleSlot(child, teacher, slot)}>
+                  return html`<button type="button" key=${slot.start_time} className=${cx('slot-btn', 'parent-slot', isSelected && 'selected', taken && 'taken')} disabled=${taken || Boolean(locked)} aria-pressed=${isSelected ? 'true' : 'false'} onClick=${() => toggleSlot(child, teacher, slot)}>
                     ${formatClock(slot.start_time)}–${formatClock(slot.end_time)}
                   </button>`;
                 })}
               </div>
-              ${teacher.already_booked ? html`<p className="booked-note">Booked ${formatClock(teacher.already_booked.start_time)}–${formatClock(teacher.already_booked.end_time)}</p>` : null}
+              ${teacher.already_booked ? html`<p className="booked-note parent-booked-note">Booked ${formatClock(teacher.already_booked.start_time)}–${formatClock(teacher.already_booked.end_time)}</p>` : null}
             </article>`)}
           </div>
         </div>
-        <form className="card day-so-far" onSubmit=${submitVisit}>
-          <h2>Day so far</h2>
-          ${!held.length && !selected.length ? html`<p className="muted">No times selected yet.</p>` : null}
-          ${held.map((item) => html`<div className="data-row" key=${item.key}>
+        <form className="card day-so-far parent-day-so-far" onSubmit=${submitVisit}>
+          <h2 className="parent-side-title">Day so far</h2>
+          ${!held.length && !selected.length ? html`<p className="muted parent-muted">No times selected yet.</p>` : null}
+          ${held.map((item) => html`<div className="data-row parent-pick-row" key=${item.key}>
             <div className="data-label">${formatClock(item.start_time)}–${formatClock(item.end_time)}</div>
             <div className="data-value">${item.student_name} · ${item.display_name}${item.room ? ` · Room ${item.room}` : ''}</div>
           </div>`)}
-          ${selected.map((item) => html`<div className="data-row" key=${item.key}>
+          ${selected.map((item) => html`<div className="data-row parent-pick-row is-selected" key=${item.key}>
             <div className="data-label">${formatClock(item.start_time)}–${formatClock(item.end_time)}</div>
             <div className="data-value">${item.student_name} · ${item.display_name}${item.room ? ` · Room ${item.room}` : ''}</div>
           </div>`)}
           <label className="field">
             <span className="field-label">Relationship</span>
-            <select className="input" value=${relationship} onChange=${(event) => setRelationship(event.target.value)}>
+            <select className="input parent-input" value=${relationship} onChange=${(event) => setRelationship(event.target.value)}>
               <option value="mother">Mother</option>
               <option value="father">Father</option>
               <option value="guardian">Guardian</option>
@@ -914,23 +931,23 @@ function BookingScreen({ eventId }) {
           </label>
           ${relationship === 'other' ? html`<label className="field">
             <span className="field-label">Describe the relationship</span>
-            <input className="input" required value=${relationshipOther} onInput=${(event) => setRelationshipOther(event.target.value)} />
+            <input className="input parent-input" required value=${relationshipOther} onInput=${(event) => setRelationshipOther(event.target.value)} />
           </label>` : null}
           <label className="field">
             <span className="field-label">First name</span>
-            <input className="input" value=${firstName} onInput=${(event) => setFirstName(event.target.value)} />
+            <input className="input parent-input" value=${firstName} onInput=${(event) => setFirstName(event.target.value)} />
             <span className="field-hint">Optional. Used on the confirmation only.</span>
           </label>
           <label className="field">
             <span className="field-label">Last name</span>
-            <input className="input" value=${lastName} onInput=${(event) => setLastName(event.target.value)} />
+            <input className="input parent-input" value=${lastName} onInput=${(event) => setLastName(event.target.value)} />
           </label>
-          ${customDefs.length ? html`<div className="custom-fields-block">
-            <h3 className="custom-fields-heading">Additional questions</h3>
+          ${customDefs.length ? html`<div className="custom-fields-block parent-custom-fields">
+            <h3 className="custom-fields-heading parent-side-subtitle">Additional questions</h3>
             ${customDefs.map((field) => html`<label className="field" key=${field.id}>
               <span className="field-label">${field.label}${field.required ? ' *' : ''}</span>
               <input
-                className="input"
+                className="input parent-input"
                 maxLength="500"
                 required=${Boolean(field.required)}
                 value=${customAnswers[field.id] || ''}
@@ -938,33 +955,33 @@ function BookingScreen({ eventId }) {
               />
             </label>`)}
           </div>` : null}
-          <button className="btn btn-primary" type="submit" disabled=${busy || !selected.length || Boolean(locked)}>${busy ? 'Booking…' : 'Confirm visit'}</button>
+          <button className="btn btn-primary parent-cta" type="submit" disabled=${busy || !selected.length || Boolean(locked)}>${busy ? 'Booking…' : 'Confirm visit'}</button>
         </form>
       </div>` : null}
-      ${phase === 'confirmed' && confirmation ? html`<div className="card">
-        <div><span className="success-note">Booking confirmed.</span></div>
-        ${(confirmation.bookings || []).map((booking) => html`<div className="data-row" key=${booking.id}>
+      ${phase === 'confirmed' && confirmation ? html`<div className="card parent-card parent-confirm-card">
+        <div className="parent-banner parent-banner-success" role="status">Booking confirmed.</div>
+        ${(confirmation.bookings || []).map((booking) => html`<div className="data-row parent-pick-row" key=${booking.id}>
           <div className="data-label">${formatClock(booking.start_time)}–${formatClock(booking.end_time)}</div>
           <div className="data-value">
             ${booking.student_name} · ${booking.display_name}${booking.room ? ` · Room ${booking.room}` : ''}
-            <div className="row-actions">
-              <button type="button" className="text-button" onClick=${() => startMove(booking)} disabled=${Boolean(locked) || busy}>Change time</button>
-              <button type="button" className="text-button" onClick=${() => cancelOne(booking)} disabled=${Boolean(locked) || busy}>Cancel this time</button>
+            <div className="row-actions parent-row-actions">
+              <button type="button" className="text-button parent-text-button" onClick=${() => startMove(booking)} disabled=${Boolean(locked) || busy}>Change time</button>
+              <button type="button" className="text-button parent-text-button" onClick=${() => cancelOne(booking)} disabled=${Boolean(locked) || busy}>Cancel this time</button>
             </div>
           </div>
         </div>`)}
-        <button className="btn btn-secondary section-gap" type="button" disabled=${busy || Boolean(locked)} onClick=${cancelVisit}>Cancel this visit</button>
+        <button className="btn btn-secondary parent-secondary section-gap" type="button" disabled=${busy || Boolean(locked)} onClick=${cancelVisit}>Cancel this visit</button>
       </div>` : null}
-      ${phase === 'move' && moving ? html`<form className="card form" onSubmit=${saveMove}>
-        <h2>Change time</h2>
-        <p className="lede">${moving.student_name} · ${moving.display_name}</p>
-        <div className="slot-grid">
-          ${moveChoices(view, moving).map((slot) => html`<button type="button" key=${slot.start_time} className=${cx('slot-btn', moveSlot?.start_time === slot.start_time && 'selected', !slot.available && slot.start_time !== moving.start_time && 'taken')} disabled=${(!slot.available && slot.start_time !== moving.start_time) || Boolean(locked)} onClick=${() => setMoveSlot(slot)}>
+      ${phase === 'move' && moving ? html`<form className="card form parent-card" onSubmit=${saveMove}>
+        <h2 className="parent-side-title">Change time</h2>
+        <p className="lede parent-lede">${moving.student_name} · ${moving.display_name}</p>
+        <div className="slot-grid parent-slot-grid">
+          ${moveChoices(view, moving).map((slot) => html`<button type="button" key=${slot.start_time} className=${cx('slot-btn', 'parent-slot', moveSlot?.start_time === slot.start_time && 'selected', !slot.available && slot.start_time !== moving.start_time && 'taken')} disabled=${(!slot.available && slot.start_time !== moving.start_time) || Boolean(locked)} onClick=${() => setMoveSlot(slot)}>
             ${formatClock(slot.start_time)}–${formatClock(slot.end_time)}
           </button>`)}
         </div>
-        <button className="btn btn-primary" type="submit" disabled=${busy || !moveSlot || Boolean(locked)}>${busy ? 'Saving…' : 'Save time'}</button>
-        <button className="btn btn-secondary" type="button" onClick=${() => { setPhase('confirmed'); setMoving(null); }}>Back</button>
+        <button className="btn btn-primary parent-cta" type="submit" disabled=${busy || !moveSlot || Boolean(locked)}>${busy ? 'Saving…' : 'Save time'}</button>
+        <button className="btn btn-secondary parent-secondary" type="button" onClick=${() => { setPhase('confirmed'); setMoving(null); }}>Back</button>
       </form>` : null}
     </main>
   </div>`;
@@ -2730,36 +2747,40 @@ function AgendaScreen({ user, eventId, timeZone, onSignOut }) {
 
   if (user.role !== 'teacher') {
     return html`<${Shell} user=${user} active="agenda" onSignOut=${onSignOut}>
-      <h1>Agenda</h1>
-      <p className="lede">The agenda is for teachers.</p>
-      <p className="section-gap"><a className="back" href="#/events">Conferences</a></p>
+      <div className="teacher-agenda">
+        <h1 className="teacher-title">Agenda</h1>
+        <p className="lede">The agenda is for teachers.</p>
+        <p className="section-gap"><a className="back teacher-back" href="#/events">Conferences</a></p>
+      </div>
     </${Shell}>`;
   }
 
   if (!id) {
     const focusId = attentionEventId(list.events);
     return html`<${Shell} user=${user} active="agenda" onSignOut=${onSignOut}>
-      <div className="screen-head">
-        <div>
-          <h1>Agenda</h1>
-          <p className="lede">Open a conference day to move meetings and block breaks.</p>
+      <div className="teacher-agenda">
+        <div className="screen-head teacher-head">
+          <div>
+            <h1 className="teacher-title">Agenda</h1>
+            <p className="lede">Open a conference day to move meetings and block breaks.</p>
+          </div>
+          ${list.error ? html`<button type="button" className="btn btn-primary teacher-cta" onClick=${loadList}>Try again</button>` : null}
         </div>
-        ${list.error ? html`<button type="button" className="btn btn-primary" onClick=${loadList}>Try again</button>` : null}
-      </div>
-      <div className="stack">
-        ${list.loading ? html`<p className="muted">Loading conferences…</p>` : null}
-        ${list.error ? html`<div className="note">${list.error.message}</div>` : null}
-        ${!list.loading && !list.error && list.events.length === 0 ? html`<div className="card"><p>No conferences yet.</p></div>` : null}
-        ${!list.loading && !list.error ? html`<div className="list">
-          ${list.events.map((event) => html`<a className="card event-card" href=${`#/agenda/${event.id}`} key=${event.id}>
-            <span className="icon-badge" aria-hidden="true"><${IconAgenda} /></span>
-            <span>
-              <span className="event-title">${event.name}</span>
-              <span className="event-meta">${formatDate(event.event_date)} · ${eventStateLine(event)}</span>
-            </span>
-            <${StatusPill} status=${event.status} attention=${event.id === focusId} />
-          </a>`)}
-        </div>` : null}
+        <div className="stack">
+          ${list.loading ? html`<div className="card teacher-card teacher-state"><p className="muted">Loading conferences…</p></div>` : null}
+          ${list.error ? html`<div className="teacher-banner teacher-banner-error" role="alert">${list.error.message}</div>` : null}
+          ${!list.loading && !list.error && list.events.length === 0 ? html`<div className="card teacher-card teacher-empty"><p>No conferences yet.</p></div>` : null}
+          ${!list.loading && !list.error ? html`<div className="list teacher-list">
+            ${list.events.map((event) => html`<a className="card event-card teacher-event-row" href=${`#/agenda/${event.id}`} key=${event.id}>
+              <span className="icon-badge teacher-event-badge" aria-hidden="true"><${IconAgenda} /></span>
+              <span className="teacher-event-body">
+                <span className="event-title">${event.name}</span>
+                <span className="event-meta">${formatDate(event.event_date)} · ${eventStateLine(event)}</span>
+              </span>
+              <${StatusPill} status=${event.status} attention=${event.id === focusId} />
+            </a>`)}
+          </div>` : null}
+        </div>
       </div>
     </${Shell}>`;
   }
@@ -2836,49 +2857,51 @@ function AgendaScreen({ user, eventId, timeZone, onSignOut }) {
   }
 
   return html`<${Shell} user=${user} active="agenda" onSignOut=${onSignOut}>
-    <a className="back" href="#/agenda">Agenda</a>
-    ${loading ? html`<p className="muted section-gap">Loading your day…</p>` : null}
-    ${error ? html`<div className="note section-gap">${error}</div>` : null}
-    ${schedule ? html`<div className="section-gap">
-      <div className="screen-head">
-        <div>
-          <h1>${schedule.event.name}</h1>
-          <p className="lede">${formatDate(schedule.event.event_date)} · ${schedule.staff.display_name}</p>
+    <div className="teacher-agenda">
+      <a className="back teacher-back" href="#/agenda">Agenda</a>
+      ${loading ? html`<div className="card teacher-card teacher-state section-gap"><p className="muted">Loading your day…</p></div>` : null}
+      ${error ? html`<div className="teacher-banner teacher-banner-error section-gap" role="alert">${error}</div>` : null}
+      ${schedule ? html`<div className="section-gap">
+        <div className="screen-head teacher-head">
+          <div>
+            <h1 className="teacher-title">${schedule.event.name}</h1>
+            <p className="lede">${formatDate(schedule.event.event_date)} · ${schedule.staff.display_name}</p>
+          </div>
         </div>
-      </div>
-      ${locked ? html`<div className="section-gap"><${QuietLock} message=${lockedMessage} /></div>` : null}
-      ${success ? html`<div className="section-gap"><span className="success-note">${success}</span></div>` : null}
-      ${notice ? html`<p className="muted section-gap">${notice}</p>` : null}
-      <div className="agenda-layout section-gap">
-        <${AgendaCalendar}
-          schedule=${schedule}
-          locked=${locked}
-          onSelectRange=${setSelection}
-          onPick=${(next) => { setPick(next); setNotice(''); }}
-          onChanged=${() => { setSuccess('Time updated.'); loadSchedule(); }}
-          onDropError=${onDropError}
-        />
-        <aside className="agenda-side card">
-          <h2>This day</h2>
-          <p className="lede">Drag a meeting onto an open slot. Select a range, then block it for a break.</p>
-          <p className="field-hint">${selection && !locked ? `${formatClock(selection.start)}–${formatClock(selection.end)} selected` : 'Select a range on the day to block a break.'}</p>
-          <button className="btn btn-primary" type="button" disabled=${busy || locked || !selection} onClick=${blockTime}>${busy ? 'Saving…' : 'Block time'}</button>
-          ${pick?.kind === 'booking' ? html`<div className="confirm">
-            <div className="data-row"><div className="data-label">Student</div><div className="data-value">${pick.booking.student_name}${pick.booking.student_nickname ? ` (${pick.booking.student_nickname})` : ''}</div></div>
-            <div className="data-row"><div className="data-label">Grade</div><div className="data-value">${pick.booking.student_grade || 'Not set'}</div></div>
-            <div className="data-row"><div className="data-label">Adult</div><div className="data-value">${relationshipLabel(pick.booking)}</div></div>
-            <div className="data-row"><div className="data-label">Service</div><div className="data-value">${pick.booking.service_name}</div></div>
-            <div className="data-row"><div className="data-label">Time</div><div className="data-value">${formatClock(pick.booking.start_time)}–${formatClock(pick.booking.end_time)}</div></div>
-            <button type="button" className="text-button" disabled=${busy || locked} onClick=${cancelBooking}>Cancel this time</button>
-          </div>` : null}
-          ${pick?.block ? html`<div className="confirm">
-            <div className="data-row"><div className="data-label">Block</div><div className="data-value">${pick.kind === 'break' ? 'Break' : 'Bookable'}</div></div>
-            <div className="data-row"><div className="data-label">Time</div><div className="data-value">${formatClock(pick.block.start_time)}–${formatClock(pick.block.end_time)}</div></div>
-            <button type="button" className="text-button" disabled=${busy || locked} onClick=${removeBlock}>${pick.kind === 'break' ? 'Remove break' : 'Remove this block'}</button>
-          </div>` : null}
-        </aside>
-      </div>
-    </div>` : null}
+        ${locked ? html`<div className="section-gap"><${QuietLock} message=${lockedMessage} /></div>` : null}
+        ${success ? html`<div className="section-gap"><span className="success-note teacher-success">${success}</span></div>` : null}
+        ${notice ? html`<div className="teacher-banner teacher-banner-advisory section-gap" role="status">${notice}</div>` : null}
+        <div className="agenda-layout teacher-agenda-layout section-gap">
+          <${AgendaCalendar}
+            schedule=${schedule}
+            locked=${locked}
+            onSelectRange=${setSelection}
+            onPick=${(next) => { setPick(next); setNotice(''); }}
+            onChanged=${() => { setSuccess('Time updated.'); loadSchedule(); }}
+            onDropError=${onDropError}
+          />
+          <aside className="agenda-side card teacher-side">
+            <h2 className="teacher-side-title">This day</h2>
+            <p className="lede">Drag a meeting onto an open slot. Select a range, then block it for a break.</p>
+            <p className="field-hint">${selection && !locked ? `${formatClock(selection.start)}–${formatClock(selection.end)} selected` : 'Select a range on the day to block a break.'}</p>
+            <button className="btn btn-primary teacher-cta" type="button" disabled=${busy || locked || !selection} onClick=${blockTime}>${busy ? 'Saving…' : 'Block time'}</button>
+            ${pick?.kind === 'booking' ? html`<div className="confirm teacher-confirm">
+              <div className="data-row"><div className="data-label">Student</div><div className="data-value">${pick.booking.student_name}${pick.booking.student_nickname ? ` (${pick.booking.student_nickname})` : ''}</div></div>
+              <div className="data-row"><div className="data-label">Grade</div><div className="data-value">${pick.booking.student_grade || 'Not set'}</div></div>
+              <div className="data-row"><div className="data-label">Adult</div><div className="data-value">${relationshipLabel(pick.booking)}</div></div>
+              <div className="data-row"><div className="data-label">Service</div><div className="data-value">${pick.booking.service_name}</div></div>
+              <div className="data-row"><div className="data-label">Time</div><div className="data-value">${formatClock(pick.booking.start_time)}–${formatClock(pick.booking.end_time)}</div></div>
+              <button type="button" className="text-button" disabled=${busy || locked} onClick=${cancelBooking}>Cancel this time</button>
+            </div>` : null}
+            ${pick?.block ? html`<div className="confirm teacher-confirm">
+              <div className="data-row"><div className="data-label">Block</div><div className="data-value">${pick.kind === 'break' ? 'Break' : 'Bookable'}</div></div>
+              <div className="data-row"><div className="data-label">Time</div><div className="data-value">${formatClock(pick.block.start_time)}–${formatClock(pick.block.end_time)}</div></div>
+              <button type="button" className="text-button" disabled=${busy || locked} onClick=${removeBlock}>${pick.kind === 'break' ? 'Remove break' : 'Remove this block'}</button>
+            </div>` : null}
+          </aside>
+        </div>
+      </div>` : null}
+    </div>
   </${Shell}>`;
 }
 
